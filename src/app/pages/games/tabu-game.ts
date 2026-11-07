@@ -9,6 +9,12 @@ export type CategoryChoice = 'general' | 'it' | 'both';
 export type DifficultyChoice = 'easy' | 'hard' | 'mixed';
 
 const USED_KEY = 'allinone_tabu_used_cards';
+const TEAMS_KEY = 'allinone_tabu_teams';
+
+export interface TabuSlot {
+  id: number;
+  name: string;
+}
 
 export type TabuPhase = 'setup' | 'prepare' | 'play' | 'moving' | 'won';
 export type CellType = 'start' | 'squeak' | 'time' | 'special' | 'c0' | 'c1' | 'c2' | 'c3';
@@ -16,7 +22,7 @@ type CardAnim = '' | 'out-up' | 'out-down' | 'out-skip' | 'in';
 
 export interface BoardCell {
   index: number;
-  col: number; // 0..2 inside its quarter
+  col: number; // 0..5 inside its quarter (2×2 quarters like a tic-tac-toe grid)
   row: number; // 0..7
   type: CellType;
   icon: string;
@@ -36,7 +42,8 @@ export interface TabuTeam {
 
 const COLS = 12;
 const ROWS = 8;
-const QCOLS = COLS / 4;
+const HALF_COLS = COLS / 2;
+const HALF_ROWS = ROWS / 2;
 export const BOARD_LENGTH = 2 * (COLS + ROWS) - 4; // 36
 
 const SQUEAK_CELLS = [5, 13, 22, 29];
@@ -65,7 +72,7 @@ function buildBoard(): BoardCell[] {
       type = 'special';
       icon = '🃏';
     }
-    return { index: i, col: x % QCOLS, row: y, type, icon, q: Math.floor(x / QCOLS) } as BoardCell & {
+    return { index: i, col: x % HALF_COLS, row: y % HALF_ROWS, type, icon, q: (x < HALF_COLS ? 0 : 2) + (y < HALF_ROWS ? 0 : 1) } as BoardCell & {
       q: number;
     };
   });
@@ -101,29 +108,44 @@ function shuffle<T>(arr: T[]): T[] {
           <section class="glass-panel panel setup">
             <h2>Spieler &amp; Teams</h2>
             <p class="muted">
-              Mindestens 4 Spieler. Abwechselnd Team 1 / Team 2 zugeordnet. Erkläre den Suchbegriff
+              Mindestens 4 Spieler – zieh die Namen per Drag &amp; Drop (⠿) zwischen den Teams. Erkläre den Suchbegriff
               ohne die 5 Tabu-Wörter – der Gegner passt am Quietscher auf! Wer zuerst eine volle
               Runde ({{ boardLength }} Felder) schafft, gewinnt.
             </p>
-            <div class="names">
-              @for (p of playerNames(); track $index) {
-                <div class="name-row" [class.t1]="$index % 2 === 1">
-                  <span class="dot"></span>
-                  <input
-                    [ngModel]="p"
-                    (ngModelChange)="setName($index, $event)"
-                    maxlength="18"
-                    [attr.aria-label]="'Spieler ' + ($index + 1)"
-                  />
-                  <button class="mini" (click)="removePlayer($index)" [disabled]="playerNames().length <= 4">✕</button>
+            <div class="cols">
+              @for (col of cols(); track $index; let ci = $index) {
+                <div class="col" [class.t1]="ci === 1" [class.over]="overCol() === ci"
+                  (dragover)="onDragOver(ci, $event)" (dragleave)="overCol.set(-1)"
+                  (drop)="onDrop(ci, null, $event)">
+                  <h3>{{ ci === 0 ? 'Team Blau/Lila' : 'Team Pink/Orange' }} <small>({{ col.length }})</small></h3>
+                  @for (p of col; track p.id) {
+                    <div class="chip" [class.dragging]="dragId() === p.id"
+                      (dragover)="onDragOver(ci, $event)" (drop)="onDrop(ci, p.id, $event)">
+                      <span class="grip" draggable="true" title="Ziehen, um Team zu wechseln"
+                        (dragstart)="onDragStart(p.id, $event)" (dragend)="dragId.set(-1); overCol.set(-1)">⠿</span>
+                      <input [ngModel]="p.name" (ngModelChange)="setName(p.id, $event)" maxlength="18"
+                        aria-label="Spielername" />
+                      <button class="mini" (click)="movePlayer(p.id, ci === 0 ? 1 : 0)" title="Team wechseln">⇄</button>
+                      <button class="mini" (click)="removePlayer(p.id)" [disabled]="totalPlayers() <= 4">✕</button>
+                    </div>
+                  }
+                  <button class="mini wide" (click)="addPlayer(ci)" [disabled]="totalPlayers() >= 10">＋ Spieler</button>
                 </div>
               }
             </div>
+            @if (!canStart()) {
+              <p class="muted">Mindestens 4 Spieler, jedes Team braucht mindestens 1 Spieler.</p>
+            }
             <h3>Spielzeit pro Zug</h3>
             <div class="opts">
               @for (s of [30, 60, 90, 120]; track s) {
                 <button class="mini" [class.sel]="timeChoice() === s" (click)="timeChoice.set(s)">{{ s }}s</button>
               }
+            </div>
+            <h3>Tabu-Quietscher</h3>
+            <div class="opts">
+              <button class="mini" [class.sel]="buzzGivesPoint()" (click)="buzzGivesPoint.set(true)">Gegner bekommt 1 Punkt</button>
+              <button class="mini" [class.sel]="!buzzGivesPoint()" (click)="buzzGivesPoint.set(false)">Kein Punkt für den Gegner</button>
             </div>
             <h3>Kategorie</h3>
             <div class="opts">
@@ -139,9 +161,6 @@ function shuffle<T>(arr: T[]): T[] {
             </div>
             <p class="muted">{{ poolSize() }} Karten im Stapel – keine Wiederholung, bis alle gespielt sind.</p>
             <div class="row">
-              <button class="mini wide" (click)="addPlayer()" [disabled]="playerNames().length >= 8">
-                ＋ Spieler
-              </button>
               <button class="go" (click)="startGame()" [disabled]="!canStart()">Spiel starten</button>
             </div>
           </section>
@@ -252,7 +271,7 @@ function shuffle<T>(arr: T[]): T[] {
 
       @if (phase() !== 'setup') {
         <p class="muted center tiny">
-          Richtig = +1 · Quietscher = −1 für dich &amp; +1 Feld für den Gegner · 🚨 Quietscher-Feld: Quietscher zählt
+          Richtig = +1 · Quietscher = −1 für dich{{ buzzGivesPoint() ? ' & +1 Feld für den Gegner' : '' }} · 🚨 Quietscher-Feld: Quietscher zählt
           nächste Runde doppelt · ⏳ doppelte Zeit · 🃏 +2 Bonusfelder
         </p>
       }
@@ -268,10 +287,10 @@ function shuffle<T>(arr: T[]): T[] {
               @for (half of [0, 1]; track half) {
                 <div class="half" [class.left]="half === 0" [class.right]="half === 1">
                   @for (q of quartersOf(half); track q) {
-                    <div class="q" [class.outer]="q === 0 || q === 3" [class.ql]="q < 2" [class.qr]="q > 1"
-                      [style.left]="(q % 2) * 50 + '%'">
-                      <svg class="art" viewBox="0 0 120 80" preserveAspectRatio="none" width="400%" height="100%"
-                        [style.left]="-(q * 100) + '%'">
+                    <div class="q" [class.qt]="q % 2 === 0" [class.ql]="q < 2" [class.qr]="q > 1"
+                      [style.top]="(q % 2) * 50 + '%'">
+                      <svg class="art" viewBox="0 0 120 80" preserveAspectRatio="none" width="200%" height="200%"
+                        [style.left]="-(q < 2 ? 0 : 100) + '%'" [style.top]="-((q % 2) * 100) + '%'">
                         <rect width="120" height="80" fill="#fde047" />
                         <polygon points="0,0 60,0 0,80" fill="#fb923c" />
                         <polygon points="120,0 120,80 60,80" fill="#2dd4bf" />
@@ -328,15 +347,23 @@ function shuffle<T>(arr: T[]): T[] {
       .tiny { font-size: 0.75rem; }
       .msg { font-size: 1.1rem; }
       .row { display: flex; gap: 0.75rem; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-      .names { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-      .name-row { display: flex; gap: 0.5rem; align-items: center; --c: #8b5cf6; }
-      .name-row.t1 { --c: #f472b6; }
-      .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+      .col { --c: #8b5cf6; border: 2px dashed var(--c); border-radius: 14px; padding: 0.7rem; display: flex; flex-direction: column; gap: 0.5rem; min-height: 160px; background: rgba(2, 6, 23, 0.35); transition: background 0.15s, box-shadow 0.15s; }
+      .col.t1 { --c: #fb7185; }
+      .col.over { background: rgba(168, 85, 247, 0.18); box-shadow: 0 0 20px var(--c); }
+      .col h3 { color: var(--c); }
+      .chip { display: flex; gap: 0.4rem; align-items: center; background: rgba(15, 23, 42, 0.9); border: 1px solid var(--c); border-radius: 10px; padding: 0.3rem 0.4rem; }
+      .chip.dragging { opacity: 0.4; }
+      .chip input { min-width: 0; }
+      .grip { cursor: grab; padding: 0 0.3rem; color: var(--c); font-size: 1.2rem; user-select: none; }
+      @media (max-width: 560px) { .cols { grid-template-columns: 1fr; } }
       input { flex: 1; background: rgba(2, 6, 23, 0.6); border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 10px; color: #fff; padding: 0.55rem 0.75rem; }
-      .mini { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); color: #e2e8f0; border-radius: 10px; padding: 0.4rem 0.75rem; cursor: pointer; }
-      .mini.sel { border-color: #a855f7; box-shadow: 0 0 12px rgba(168, 85, 247, 0.6); }
+      .mini { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(148, 163, 184, 0.3); color: #e2e8f0; border-radius: 10px; padding: 0.4rem 0.75rem; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+      .mini:hover:not(:disabled) { border-color: #a855f7; transform: translateY(-1px); }
+      .mini.sel { border-color: #a855f7; background: rgba(124, 58, 237, 0.35); box-shadow: 0 0 12px rgba(168, 85, 247, 0.6); }
       .mini:disabled, .go:disabled { opacity: 0.4; cursor: not-allowed; }
-      .go { background: linear-gradient(135deg, #a855f7, #ec4899, #06b6d4); color: #fff; border: 0; border-radius: 14px; padding: 0.85rem 1.6rem; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 28px -6px rgba(168, 85, 247, 0.7); }
+      .go { background: linear-gradient(135deg, #a855f7, #ec4899, #06b6d4); color: #fff; border: 0; border-radius: 14px; padding: 0.85rem 1.6rem; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 8px 28px -6px rgba(168, 85, 247, 0.7); transition: transform 0.15s; }
+      .go:hover:not(:disabled) { transform: translateY(-2px); }
       .prepare { text-align: center; align-items: center; }
       .scores { display: flex; gap: 1rem; width: 100%; }
       .score { --c: #888; flex: 1; border: 1px solid var(--c); border-radius: 14px; padding: 0.7rem; display: flex; flex-direction: column; gap: 0.2rem; opacity: 0.6; }
@@ -391,13 +418,15 @@ function shuffle<T>(arr: T[]): T[] {
       .half.right { transform-origin: left center; transform: rotateY(-85deg); }
       .board3d.open .half { transform: rotateY(0deg); }
       .board3d:not(.open) .half { transition-delay: 0.9s; }
-      .q { position: absolute; top: 0; width: 50%; height: 100%; overflow: hidden; border: 3px solid #0b0b12; box-sizing: border-box; background: #fde047; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); }
-      .q.outer { transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1); }
-      .q.outer.ql { transform-origin: right center; transform: rotateY(-175deg); border-radius: 14px 0 0 14px; }
-      .q.outer.qr { transform-origin: left center; transform: rotateY(175deg); border-radius: 0 14px 14px 0; }
-      .board3d.open .q.outer { transform: rotateY(0deg); transition-delay: 0.9s; }
+      .q { position: absolute; left: 0; width: 100%; height: 50%; overflow: hidden; border: 3px solid #0b0b12; box-sizing: border-box; background: #fde047; box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5); }
+      .q.qt { transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center bottom; transform: rotateX(175deg); }
+      .q.qt.ql { border-radius: 14px 0 0 0; }
+      .q.qt.qr { border-radius: 0 14px 0 0; }
+      .q:not(.qt).ql { border-radius: 0 0 0 14px; }
+      .q:not(.qt).qr { border-radius: 0 0 14px 0; }
+      .board3d.open .q.qt { transform: rotateX(0deg); transition-delay: 0.9s; }
       .art { position: absolute; top: 0; }
-      .grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(8, 1fr); }
+      .grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr); }
       .cell { position: relative; border: 2px solid #0b0b12; display: grid; place-items: center; font-weight: 900; font-size: clamp(0.6rem, 1.8vw, 1.2rem); color: #0b0b12; }
       .cell.c0 { background: #fde047; } .cell.c1 { background: #fb923c; } .cell.c2 { background: #2dd4bf; } .cell.c3 { background: #c084fc; }
       .cell.start { background: #fff; } .cell.squeak { background: #ef4444; } .cell.time { background: #38bdf8; } .cell.special { background: #f472b6; }
@@ -422,9 +451,11 @@ export class TabuGameComponent implements OnDestroy {
   readonly boardLength = BOARD_LENGTH;
 
   readonly phase = signal<TabuPhase>('setup');
-  readonly playerNames = signal<string[]>(
-    loadSavedPlayerNames(['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4']),
-  );
+  private nextId = 1;
+  readonly cols = signal<TabuSlot[][]>(this.initialColumns());
+  readonly dragId = signal(-1);
+  readonly overCol = signal(-1);
+  readonly totalPlayers = computed(() => this.cols()[0].length + this.cols()[1].length);
   readonly muted = signal(false);
 
   readonly teams = signal<TabuTeam[]>([]);
@@ -445,6 +476,7 @@ export class TabuGameComponent implements OnDestroy {
   readonly winner = signal<TabuTeam | null>(null);
 
   readonly timeChoice = signal(60);
+  readonly buzzGivesPoint = signal(true);
   readonly category = signal<CategoryChoice>('both');
   readonly difficulty = signal<DifficultyChoice>('mixed');
   readonly pool = computed(() =>
@@ -473,7 +505,10 @@ export class TabuGameComponent implements OnDestroy {
   readonly unfolded = signal(false);
 
   readonly canStart = computed(
-    () => this.playerNames().filter((n) => n.trim().length > 0).length >= 4,
+    () =>
+      this.cols()[0].filter((p) => p.name.trim()).length >= 1 &&
+      this.cols()[1].filter((p) => p.name.trim()).length >= 1 &&
+      this.cols()[0].concat(this.cols()[1]).filter((p) => p.name.trim()).length >= 4,
   );
 
   private deck: TabuCard[] = [];
@@ -506,7 +541,7 @@ export class TabuGameComponent implements OnDestroy {
   }
 
   quartersOf(half: number): number[] {
-    return half === 0 ? [0, 1] : [2, 3];
+    return half === 0 ? [0, 1] : [2, 3]; // [top, bottom]
   }
 
   cellsOf(q: number): Array<BoardCell & { q: number }> {
@@ -514,14 +549,67 @@ export class TabuGameComponent implements OnDestroy {
   }
 
   // ---------- Setup ----------
-  setName(i: number, v: string): void {
-    this.playerNames.update((a) => a.map((n, idx) => (idx === i ? v : n)));
+  private initialColumns(): TabuSlot[][] {
+    const names = loadSavedPlayerNames(['Spieler 1', 'Spieler 2', 'Spieler 3', 'Spieler 4']);
+    const mk = (n: string): TabuSlot => ({ id: this.nextId++, name: n });
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(TEAMS_KEY) : null;
+      if (raw) {
+        const t = JSON.parse(raw) as { a: string[]; b: string[] };
+        const joined = [...t.a, ...t.b].sort().join('|');
+        if (joined === [...names].sort().join('|')) return [t.a.map(mk), t.b.map(mk)];
+      }
+    } catch {}
+    return [names.filter((_, i) => i % 2 === 0).map(mk), names.filter((_, i) => i % 2 === 1).map(mk)];
   }
-  addPlayer(): void {
-    this.playerNames.update((a) => [...a, `Spieler ${a.length + 1}`]);
+
+  setName(id: number, v: string): void {
+    this.cols.update((c) => c.map((col) => col.map((p) => (p.id === id ? { ...p, name: v } : p))));
   }
-  removePlayer(i: number): void {
-    this.playerNames.update((a) => a.filter((_, idx) => idx !== i));
+  addPlayer(ci: number): void {
+    const n = this.totalPlayers() + 1;
+    this.cols.update((c) =>
+      c.map((col, i) => (i === ci ? [...col, { id: this.nextId++, name: `Spieler ${n}` }] : col)),
+    );
+  }
+  removePlayer(id: number): void {
+    this.cols.update((c) => c.map((col) => col.filter((p) => p.id !== id)));
+  }
+
+  /** Moves a player to a team column, optionally placing him before another player. */
+  movePlayer(id: number, toCol: number, beforeId: number | null = null): void {
+    const all = this.cols().flat();
+    const slot = all.find((p) => p.id === id);
+    if (!slot || id === beforeId) return;
+    const stripped = this.cols().map((col) => col.filter((p) => p.id !== id));
+    const target = [...stripped[toCol]];
+    const idx = beforeId === null ? -1 : target.findIndex((p) => p.id === beforeId);
+    if (idx >= 0) target.splice(idx, 0, slot);
+    else target.push(slot);
+    stripped[toCol] = target;
+    this.cols.set(stripped);
+  }
+
+  onDragStart(id: number, e: DragEvent): void {
+    this.dragId.set(id);
+    e.dataTransfer?.setData('text/plain', String(id));
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      const chip = (e.target as HTMLElement).closest('.chip');
+      if (chip) e.dataTransfer.setDragImage(chip, 20, 20);
+    }
+  }
+  onDragOver(ci: number, e: DragEvent): void {
+    e.preventDefault();
+    this.overCol.set(ci);
+  }
+  onDrop(ci: number, beforeId: number | null, e: DragEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const id = this.dragId();
+    if (id >= 0) this.movePlayer(id, ci, beforeId);
+    this.dragId.set(-1);
+    this.overCol.set(-1);
   }
 
   private emptyTeam(id: 0 | 1): TabuTeam {
@@ -529,13 +617,17 @@ export class TabuGameComponent implements OnDestroy {
   }
 
   startGame(): void {
-    const names = this.playerNames().map((n) => n.trim()).filter((n) => n);
-    if (names.length < 4) return;
-    this.playerNames.set(names);
-    savePlayerNames(names);
+    if (!this.canStart()) return;
+    const clean = (c: TabuSlot[]) => c.map((p) => p.name.trim()).filter((n) => n);
+    const a = clean(this.cols()[0]);
+    const b = clean(this.cols()[1]);
+    savePlayerNames([...a, ...b]);
+    try {
+      localStorage.setItem(TEAMS_KEY, JSON.stringify({ a, b }));
+    } catch {}
     this.teams.set([
-      { ...this.emptyTeam(0), name: 'Team Blau/Lila', color: '#8b5cf6', players: names.filter((_, i) => i % 2 === 0) },
-      { ...this.emptyTeam(1), name: 'Team Pink/Orange', color: '#fb7185', players: names.filter((_, i) => i % 2 === 1) },
+      { ...this.emptyTeam(0), name: 'Team Blau/Lila', color: '#8b5cf6', players: a },
+      { ...this.emptyTeam(1), name: 'Team Pink/Orange', color: '#fb7185', players: b },
     ]);
     this.deck = [];
     this.activeIdx.set(0);
@@ -677,7 +769,7 @@ export class TabuGameComponent implements OnDestroy {
     const t = this.teams()[me];
     const penalty = t.doubleBuzz ? 2 : 1;
     const net = Math.max(0, this.correct() - this.buzzed() * penalty);
-    const gift = this.buzzed();
+    const gift = this.buzzGivesPoint() ? this.buzzed() : 0;
     // consume one-shot modifiers of the team that just played
     this.patchTeam(me, { doubleTime: false, doubleBuzz: false, turns: t.turns + 1, score: t.score + this.correct() });
     const parts = [
