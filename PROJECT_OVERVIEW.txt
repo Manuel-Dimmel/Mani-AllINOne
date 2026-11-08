@@ -9,7 +9,7 @@
 2. [Technologie-Stack & Systemvoraussetzungen](#2-technologie-stack--systemvoraussetzungen)
 3. [Vollständige Projekt- & Ordnerstruktur](#3-vollständige-projekt--ordnerstruktur)
 4. [Übersicht aller bestehenden Programme & Spiele](#4-übersicht-aller-bestehenden-programme--spiele)
-5. [Die 5 kritischen Architektur-Regeln (Zoneless, Sound, Storage, Vercel)](#5-die-5-kritischen-architektur-regeln)
+5. [Die 5 kritischen Architektur-Regeln (Zoneless, Signals, Sound, Storage, Vercel)](#5-die-5-kritischen-architektur-regeln)
 6. [Design-System, CSS-Variablen & Glasmorphismus](#6-design-system-css-variablen--glasmorphismus)
 7. [Schritt-für-Schritt-Anleitung: Neues Spiel / Tool einbinden](#7-schritt-für-schritt-anleitung-neues-spiel--tool-einbinden)
 8. [Copy & Paste Vorlagen für neue Module](#8-copy--paste-vorlagen-für-neue-module)
@@ -22,7 +22,7 @@
 **AllInOne** ist ein modernes, multifunktionales Web-Portal und App-Hub. Es kombiniert:
 1. **Lokale Hochleistungs-Utilities mit Python-Backend** (z. B. 4K YouTube-Downloader mit FFmpeg-Merge, KI-Hintergrundentfernung mit rembg / OpenCV).
 2. **100 % Client-seitige Web-Tools** (Universal-Konverter für 30+ Formate, QR-Code & WLAN-Karten Generator, Entscheidungs-Hub mit Canvas-Glücksrad & 3D-Würfeln, Passwort-Studio, Dev-Tools).
-3. **Digitale Party- & Brettspiele** (Tapple mit 26 Tasten, 5 Second Rule, Tick Tack Bumm mit Zufallsbombe, Anomia Duelle, Stadt Land Vollpfosten, Tabu mit 3D-Faltbrett, Neon Snake, Tic-Tac-Toe Minimax, Quantum Memory).
+3. **Digitale Party- & Brettspiele** (Tapple mit 26 Tasten, 5 Second Rule, Tick Tack Bumm mit Zufallsbombe, Anomia Duelle, Stadt Land Vollpfosten, Tabu mit 1.420+ Karten & 3D-Faltbrett, Neon Snake, Tic-Tac-Toe Minimax, Quantum Memory).
 
 ### Kernphilosophie:
 - **Zero Cloud Friction:** Wo immer möglich, laufen Tools und Spiele komplett autark im Browser (HTML5 Canvas, Web Audio API, Web Crypto API, Web Workers).
@@ -36,7 +36,7 @@
 
 | Bereich | Technologie | Details / Version |
 | :--- | :--- | :--- |
-| **Frontend-Framework** | **Angular 22** (`@angular/core`) | **Zoneless** (ohne `zone.js`), Signals (`signal`, `computed`), Control Flow (`@if`, `@for`, `@switch`) |
+| **Frontend-Framework** | **Angular 22** (`@angular/core`) | **Zoneless** (ohne `zone.js`), Signals (`signal`, `computed`, `effect`), Control Flow (`@if`, `@for`, `@switch`) |
 | **Sprache** | **TypeScript 6.0+** | Strikte Typisierung, Standalone Components (`standalone: true`) |
 | **Build-Tool** | **Angular CLI / Vite / esbuild** | `ng build`, `npm run build` |
 | **Styling** | **Mobiles & responsives CSS3** | Custom Properties, Glassmorphism, Backdrop-Filter, keine Third-Party UI-Libraries (Tailwind/Bootstrap nicht benötigt) |
@@ -51,6 +51,8 @@
 
 ```text
 AllInOne/
+├── PROJECT_OVERVIEW.md             # Dieses Handbuch im Projektstamm (Markdown)
+├── PROJECT_OVERVIEW.txt            # Leicht exportierbares Textdokument für andere LLMs
 ├── angular.json                    # Angular CLI Projekt-Konfiguration
 ├── package.json                    # Node Dependencies & Skripte
 ├── tsconfig.json                   # TypeScript Compiler-Konfiguration
@@ -100,7 +102,8 @@ AllInOne/
                 ├── tick-tack-bumm-game.ts # Tick Tack Bumm: Zufallsbombe (10-60s), Silben-Würfel
                 ├── anomia-game.ts         # Anomia: Symbol-Duelle, Kaskaden-Kettenreaktionen
                 ├── vollpfosten-game.ts    # Stadt Land Vollpfosten: Zuruf-Kartenspiel, Jackpot
-                ├── tabu-game.ts           # Tabu: 5 Tabuwörter, 3D-Faltbrett, Quietscher-Sound
+                ├── tabu-cards.ts          # 1.420+ Tabu-Karten (Allgemein & IT, Easy & Hard)
+                ├── tabu-game.ts           # Tabu: Signal-basiert, 36-Felder 3D-Faltbrett, Quietscher
                 ├── snake-game.ts          # Neon Snake Cybergrid (Canvas, 60 FPS)
                 ├── tictactoe-game.ts      # Cyber Tic-Tac-Toe mit unbesiegbarer Minimax-KI
                 └── memory-game.ts         # Quantum Memory Matrix mit 3D-Flip-Karten
@@ -154,8 +157,11 @@ AllInOne/
    - Stadt-Land-Fluss als Zurufspiel ohne Zettel.
    - 110 lustige Kategorien, Zufalls-Buchstabe, 4 Spezialmodi (Buchstabendreher, Doppelpack, Aussetzer, Jackpot).
 6. **Tabu — Das Partyspiel** (`/games/tabu`):
-   - 4+ Spieler in 2 Teams. Erkläre das Hauptwort, ohne 5 verbotene Tabuwörter zu nennen.
-   - 3D-faltbares Spielbrett mit Spielfiguren, synthetisierter Quietscher-Buzzer, Sanduhr-Timer.
+   - **1.420+ Tabu-Karten** in `tabu-cards.ts`: Aufgeteilt in Kategorien (*Allgemein* & *IT/Tech*) sowie Schwierigkeiten (*Easy* & *Hard*).
+   - **4+ Spieler in 2 Teams** (Team A & Team B): Voll synchronisiert mit `player-storage.ts` und eigener Team-Persistenz im `localStorage` (`allinone_tabu_teams`).
+   - **36-Felder 3D-Faltbrett**: Start 🏁, Quietscher-Felder 🚨, Sanduhr-Felder ⏳, Spezial-Felder 🃏 (Doppelte Zeit, Doppelter Buzzer) und Farbkategorien c0–c3.
+   - **Interaktiver Tabu-Quietscher**: Synthetisierter Synth-Sound via Web Audio API, Tastatur-Shortcuts (Space, Enter, Z, Q) und animierte Karten-Transitions.
+   - **Tracking & Historie**: Bereits gespielte Karten werden in `localStorage` gemerkt (`allinone_tabu_used_cards`), sodass keine Wiederholungen auftreten.
 7. **Neon Snake Cybergrid** (`/games/snake`):
    - 60 FPS HTML5 Canvas Arcade-Klassiker im Cyberpunk-Stil mit Highscore und 3 Geschwindigkeiten.
 8. **Cyber Tic-Tac-Toe AI** (`/games/tictactoe`):
@@ -169,14 +175,19 @@ AllInOne/
 
 Jedes LLM, das Code für dieses Projekt schreibt, **MUSS** diese 5 Regeln befolgen:
 
-### ⚠️ Regel 1: Angular 22 läuft ZONELESS (Kein `zone.js`)
+### ⚠️ Regel 1: Angular 22 läuft ZONELESS (Kein `zone.js`) & Signal-First
 Angular 22 läuft in diesem Projekt standardmäßig ohne `zone.js`. Das bedeutet:
-- **Signals sind First-Class:** Verwende `signal()`, `computed()` für reaktiven State.
+- **Signals sind First-Class:** Verwende bevorzugt `signal()`, `computed()` und `effect()` für reaktiven State (wie in `tabu-game.ts`).
 - **Asynchrone Callbacks triggern KEINE automatische Change Detection:** Wenn du `setInterval`, `setTimeout`, `requestAnimationFrame` oder native Event-Listener nutzt, um normale Variablen zu mutieren, **bekommt das Template nichts davon mit!**
 - **Lösung:** Injiziere immer `ChangeDetectorRef` und rufe in Timer-Callbacks explizit `this.cdr.markForCheck()` auf, oder nutze Signals (`this.timeLeft.update(t => t - 1)`).
 
 ```typescript
-// ✅ KORREKTES MUSTER FÜR TIMER IN ZONELESS ANGULAR:
+// ✅ VARIANTE A: Signals (wie in Tabu)
+readonly timeLeft = signal(60);
+// Im Timer:
+this.timeLeft.update(t => Math.max(0, t - 1));
+
+// ✅ VARIANTE B: ChangeDetectorRef (bei klassischen Properties)
 import { Component, ChangeDetectorRef, inject } from '@angular/core';
 
 export class TimerGameComponent {
@@ -543,6 +554,6 @@ export class PartyGameTemplateComponent implements OnInit, OnDestroy {
 > 💡 **Tipp für andere LLMs:** Wenn du gebeten wirst, ein neues Spiel oder Tool zu programmieren:
 > 1. Erstelle die Komponente wie in Abschnitt 8 gezeigt.
 > 2. Aktualisiere `src/app/models/catalog.model.ts`, `src/app/app.routes.ts` und `src/app/app.html`.
-> 3. Achte peinlich genau auf **Angular 22 Zoneless** (`cdr.markForCheck()` in allen asynchronen Funktionen).
+> 3. Achte peinlich genau auf **Angular 22 Zoneless** (`cdr.markForCheck()` in allen asynchronen Funktionen oder native Signals).
 > 4. Speichere Spielernamen mit `savePlayerNames()`.
 > 5. Nutze Web Audio für Sounds statt externer Assets.
