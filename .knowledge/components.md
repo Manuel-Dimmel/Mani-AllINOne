@@ -4,8 +4,9 @@
 
 | Subsystem | Folder | Responsibility | Key Exports / APIs |
 |---|---|---|---|
-| **App Shell & Top Actions** | `src/app/` | Global layout, brand, responsive navbar, top-corner language & theme dropdowns, router outlet | `App`, `app.spec.ts`, `app.routes.ts`, `app.config.ts` |
+| **App Shell & Top Actions** | `src/app/` | Global layout, brand, mode switcher (`Spiele` vs `Notebook`), responsive navbar, top-corner language & theme dropdowns, router outlet | `App`, `app.spec.ts`, `app.routes.ts`, `app.config.ts` |
 | **Catalog Subsystem** | `src/app/models/` | Metadata registry for all tools and games | `CATALOG_ITEMS`, `CatalogItem`, `CategoryType` |
+| **Mode Engine** | `src/app/services/` | Two-mode workspace toggle (`games` vs `notebook`), navbar and dashboard content filtering, DOM `data-mode` | `ModeService`, `MODE_OPTIONS`, `AppMode` |
 | **Theme Engine** | `src/app/services/` | Theme state management, DOM `data-theme` switching, local storage persistence | `ThemeService`, `THEME_OPTIONS`, `ThemeId` |
 | **Language Engine** | `src/app/services/` | Global bilingual state (DE/EN), dual-key local storage persistence, DOM `lang` attribute | `LanguageService`, `LANGUAGE_OPTIONS`, `AppLanguage` |
 | **Player Persistence** | `src/app/services/` | Shared player name roster synchronization across party games | `loadSavedPlayerNames()`, `savePlayerNames()` |

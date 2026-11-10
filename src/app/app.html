@@ -1,32 +1,48 @@
 <div class="app-layout">
-  <div class="ambient-bg">
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
-  </div>
-
   <header class="navbar">
     <div class="nav-inner">
-      <!-- TOP ROW: BRAND ON THE LEFT, CONTROLS IN THE RIGHT CORNER ON THE EXACT SAME HEIGHT -->
+      <!-- TOP ROW: BRAND & MODE SWITCHER ON THE LEFT, CONTROLS IN THE RIGHT CORNER -->
       <div class="nav-top-row">
-        <a routerLink="/" class="brand">
-          <div class="brand-logo">✦</div>
-          <div class="brand-text">
+        <div class="nav-brand-section">
+          <a routerLink="/" class="brand">
             <span class="brand-name">AllInOne</span>
-            <span class="brand-sub">Spiele & Programme</span>
+          </a>
+
+          <!-- MODE SWITCHER (SPIELE / NOTEBOOK) -->
+          <div class="mode-switcher" role="group" aria-label="Ansichtsmodus">
+            <button
+              type="button"
+              class="mode-btn"
+              [class.active]="modeService.isGames()"
+              [attr.aria-pressed]="modeService.isGames()"
+              (click)="setMode('games')"
+            >
+              <span class="mode-icon">🎮</span>
+              <span class="mode-label">Spiele</span>
+            </button>
+            <button
+              type="button"
+              class="mode-btn"
+              [class.active]="modeService.isNotebook()"
+              [attr.aria-pressed]="modeService.isNotebook()"
+              (click)="setMode('notebook')"
+            >
+              <span class="mode-icon">📓</span>
+              <span class="mode-label">Notebook</span>
+            </button>
           </div>
-        </a>
+        </div>
 
         <div class="nav-top-actions">
-          <!-- LANGUAGE SELECTOR (LOCAL/GLOBAL FOR ALL GAMES) -->
+          <!-- LANGUAGE SELECTOR -->
           <div class="lang-dropdown-container">
             <button
               type="button"
               class="top-ctrl-btn lang-toggle-btn"
               [attr.aria-expanded]="langMenuOpen()"
               aria-haspopup="listbox"
-              aria-label="Sprache für Spiele und Seite auswählen"
-              title="Globale Sprache für Spiele & Apps wählen"
+              aria-label="Sprache auswählen"
+              title="Globale Sprache wählen"
               (click)="toggleLangMenu($event)"
             >
               <span class="lang-btn-flag">{{ languageService.activeOption().flag }}</span>
@@ -40,8 +56,8 @@
               <div class="dropdown-overlay" (click)="closeLangMenu()"></div>
               <div class="dropdown-popover lang-menu glass-panel" role="listbox" aria-label="Sprachen">
                 <div class="dropdown-header">
-                  <span class="dropdown-title">SPRACHE / LANGUAGE</span>
-                  <span class="dropdown-badge">Alle Spiele</span>
+                  <span class="dropdown-title">Sprache</span>
+                  <span class="dropdown-badge">Lokal</span>
                 </div>
                 <div class="dropdown-list">
                   @for (lang of languageService.languages; track lang.code) {
@@ -53,9 +69,7 @@
                       [class.selected]="languageService.currentLang() === lang.code"
                       (click)="selectLanguage(lang.code)"
                     >
-                      <div class="lang-flag-box">
-                        <span>{{ lang.flag }}</span>
-                      </div>
+                      <span class="lang-flag-box">{{ lang.flag }}</span>
                       <div class="dropdown-item-details">
                         <div class="dropdown-item-headline">
                           <span class="dropdown-item-name">{{ lang.name }}</span>
@@ -95,7 +109,7 @@
               <div class="dropdown-overlay" (click)="closeThemeMenu()"></div>
               <div class="dropdown-popover theme-menu glass-panel" role="listbox" aria-label="Designs">
                 <div class="dropdown-header">
-                  <span class="dropdown-title">DESIGN-THEME</span>
+                  <span class="dropdown-title">Design</span>
                   <span class="dropdown-badge">3 Stile</span>
                 </div>
                 <div class="dropdown-list">
@@ -108,13 +122,11 @@
                       [class.selected]="themeService.activeThemeId() === theme.id"
                       (click)="selectTheme(theme.id)"
                     >
-                      <div class="theme-item-icon-box" [attr.data-item-theme]="theme.id">
-                        <span>{{ theme.icon }}</span>
-                      </div>
+                      <span class="theme-item-icon-box">{{ theme.icon }}</span>
                       <div class="dropdown-item-details">
                         <div class="dropdown-item-headline">
                           <span class="dropdown-item-name">{{ theme.name }}</span>
-                          <span class="dropdown-item-badge" [attr.data-item-theme]="theme.id">{{ theme.badge }}</span>
+                          <span class="dropdown-item-badge">{{ theme.badge }}</span>
                         </div>
                         <span class="dropdown-item-tagline">{{ theme.tagline }}</span>
                       </div>
@@ -130,63 +142,21 @@
         </div>
       </div>
 
-      <!-- BOTTOM ROW: HORIZONTALLY SCROLLABLE / WRAPPING NAV LINKS -->
-      <nav class="nav-links">
-        <a
-          routerLink="/"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          class="nav-item"
-        >
-          <span>🏠</span>
-          <span>Übersicht</span>
-        </a>
-        <a routerLink="/programs/yt-downloader" routerLinkActive="active" class="nav-item yt-highlight">
-          <span>🎬</span>
-          <span>YT Downloader</span>
-          <span class="mini-tag">Python</span>
-        </a>
-        <a routerLink="/programs/bg-remover" routerLinkActive="active" class="nav-item yt-highlight">
-          <span>🪄</span>
-          <span>BG Remover</span>
-          <span class="mini-tag">Python AI</span>
-        </a>
-        <a routerLink="/programs/universal-converter" routerLinkActive="active" class="nav-item">
-          <span>🔄</span>
-          <span>Konverter</span>
-        </a>
-        <a routerLink="/programs/qr-studio" routerLinkActive="active" class="nav-item">
-          <span>📱</span>
-          <span>QR Studio</span>
-        </a>
-        <a routerLink="/programs/decision-hub" routerLinkActive="active" class="nav-item">
-          <span>🎡</span>
-          <span>Glücksrad</span>
-        </a>
-        <a routerLink="/games/tapple" routerLinkActive="active" class="nav-item">
-          <span>🔴</span>
-          <span>Tapple</span>
-        </a>
-        <a routerLink="/games/five-seconds" routerLinkActive="active" class="nav-item">
-          <span>⏱️</span>
-          <span>5 Second Rule</span>
-        </a>
-        <a routerLink="/games/tick-tack-bumm" routerLinkActive="active" class="nav-item">
-          <span>💣</span>
-          <span>Tick Tack Bumm</span>
-        </a>
-        <a routerLink="/games/anomia" routerLinkActive="active" class="nav-item">
-          <span>⚡</span>
-          <span>Anomia</span>
-        </a>
-        <a routerLink="/games/vollpfosten" routerLinkActive="active" class="nav-item">
-          <span>🃏</span>
-          <span>Vollpfosten</span>
-        </a>
-        <a routerLink="/games/tabu" routerLinkActive="active" class="nav-item">
-          <span>🤫</span>
-          <span>Tabu</span>
-        </a>
+      <!-- BOTTOM ROW: NAV LINKS FILTERED FOR ACTIVE MODE -->
+      <nav class="nav-links" aria-label="Hauptnavigation">
+        @for (link of navLinks(); track link.route) {
+          <a
+            [routerLink]="link.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: !!link.exact }"
+            class="nav-item"
+          >
+            <span class="nav-label">{{ link.label }}</span>
+            @if (link.tag) {
+              <span class="nav-mini-tag">{{ link.tag }}</span>
+            }
+          </a>
+        }
       </nav>
     </div>
   </header>

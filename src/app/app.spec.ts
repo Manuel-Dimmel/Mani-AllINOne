@@ -5,13 +5,14 @@ import { App } from './app';
 import { routes } from './app.routes';
 import { ThemeService } from './services/theme.service';
 import { LanguageService } from './services/language.service';
+import { ModeService } from './services/mode.service';
 
 describe('App', () => {
   beforeEach(async () => {
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter(routes), provideHttpClient(), ThemeService, LanguageService],
+      providers: [provideRouter(routes), provideHttpClient(), ThemeService, LanguageService, ModeService],
     }).compileComponents();
   });
 
@@ -25,7 +26,7 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render top row with brand on left and controls in right corner', async () => {
+  it('should render top row with brand, mode switcher on left and controls in right corner', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -38,6 +39,9 @@ describe('App', () => {
     expect(brand).toBeTruthy();
     expect(brand?.textContent).toContain('AllInOne');
 
+    const modeSwitcher = topRow?.querySelector('.mode-switcher');
+    expect(modeSwitcher).toBeTruthy();
+
     const topActions = topRow?.querySelector('.nav-top-actions');
     expect(topActions).toBeTruthy();
 
@@ -45,6 +49,37 @@ describe('App', () => {
     const themeBtn = topActions?.querySelector('.theme-toggle-btn');
     expect(langBtn).toBeTruthy();
     expect(themeBtn).toBeTruthy();
+  });
+
+  it('should switch mode between games and notebook and filter nav links', async () => {
+    const fixture = TestBed.createComponent(App);
+    const modeService = TestBed.inject(ModeService);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const modeBtns = compiled.querySelectorAll<HTMLButtonElement>('.mode-btn');
+    expect(modeBtns.length).toBe(2);
+
+    // Initial mode is games
+    expect(modeService.activeMode()).toBe('games');
+    const gamesNavLabels = Array.from(compiled.querySelectorAll('.nav-item .nav-label')).map(
+      (el) => el.textContent?.trim()
+    );
+    expect(gamesNavLabels).toContain('Tapple');
+    expect(gamesNavLabels).not.toContain('YT Downloader');
+
+    // Click Notebook mode button
+    modeBtns[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(modeService.activeMode()).toBe('notebook');
+    const notebookNavLabels = Array.from(compiled.querySelectorAll('.nav-item .nav-label')).map(
+      (el) => el.textContent?.trim()
+    );
+    expect(notebookNavLabels).toContain('YT Downloader');
+    expect(notebookNavLabels).not.toContain('Tapple');
   });
 
   it('should toggle language dropdown and switch language globally', async () => {

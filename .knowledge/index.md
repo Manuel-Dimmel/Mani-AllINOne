@@ -21,11 +21,12 @@
 - **Frontend Bootstrap:** `src/main.ts` & `src/app/app.ts` (Root Component & Navbar)
 - **Application Config & Routing:** `src/app/app.config.ts` & `src/app/app.routes.ts`
 - **Central Catalog (Single Source of Truth):** `src/app/models/catalog.model.ts`
+- **Mode Switcher (Spiele / Notebook):** `src/app/services/mode.service.ts`
 - **Python Backend Daemon (Port 8765):** `backend/yt_downloader.py` & `backend/bg_remover.py`
 - **Theme Engine:** `src/app/services/theme.service.ts` & `src/styles/themes/`
 - **Language Engine (DE/EN):** `src/app/services/language.service.ts`
 - **Shared Player Pool:** `src/app/services/player-storage.ts`
-- **Global Design System:** `src/styles.css` & `src/app/app.css`
+- **Global Design System (Unslop):** `src/styles.css` & `src/app/app.css`
 
 ---
 

@@ -1,9 +1,11 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { CATALOG_ITEMS, CatalogItem, CategoryType } from '../../models/catalog.model';
+import { CATALOG_ITEMS, CatalogItem } from '../../models/catalog.model';
 import { YtDownloaderService } from '../../services/yt-downloader.service';
+import { ModeService } from '../../services/mode.service';
+import { LanguageService } from '../../services/language.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -11,79 +13,97 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="dashboard-wrapper">
-      <!-- HERO BANNER -->
-      <section class="hero-card glass-panel">
-        <div class="hero-glow hero-glow-1"></div>
-        <div class="hero-glow hero-glow-2" [style.background]="activeSpotlight().glowColor"></div>
+      <!-- HERO WORKSPACE SECTION -->
+      <section class="hero-card" [attr.data-mode]="modeService.activeMode()">
+        <div class="hero-top-accent"></div>
 
         <div class="hero-content">
-          <div class="hero-badge-row">
-            <span class="pulse-badge">
-              <span class="pulse-dot"></span>
-              ALL-IN-ONE NEXUS
+          <div class="hero-meta-row">
+            <span class="mode-tag-chip">
+              <span class="mode-tag-dot"></span>
+              {{ modeService.isGames() ? 'MODUS: SPIELE' : 'MODUS: NOTEBOOK' }}
             </span>
-            <span class="status-pill" [class.online]="backendOnline()">
-              {{ backendOnline() ? '🐍 Python Engine Online' : '🐍 Python Backend bereit (Port 8765)' }}
+
+            @if (modeService.isNotebook()) {
+              <span class="status-chip" [class.online]="backendOnline()">
+                <span class="status-dot"></span>
+                {{ backendOnline() ? 'Python Engine Online (:8765)' : 'Python Backend bereit' }}
+              </span>
+            } @else {
+              <span class="status-chip online">
+                <span class="status-dot"></span>
+                {{ langService.isEn() ? 'Local Multiplayer Ready' : 'Lokaler Mehrspieler bereit' }}
+              </span>
+            }
+
+            <span class="count-chip">
+              {{ totalModeCount() }} {{ modeService.isGames() ? (langService.isEn() ? 'Games' : 'Spiele') : (langService.isEn() ? 'Tools' : 'Werkzeuge') }}
             </span>
           </div>
 
           <h1 class="hero-title">
-            Dein Hub für <span class="gradient-text-cyan">Spiele</span> &
-            <span class="gradient-text-rose">Programme</span>
+            @if (modeService.isGames()) {
+              {{ langService.isEn() ? 'Board & Social Games' : 'Gesellschafts- & Denkspiele' }}
+            } @else {
+              {{ langService.isEn() ? 'Notebook & Local Engines' : 'Notebook & Lokale Werkzeuge' }}
+            }
           </h1>
+
           <p class="hero-subtitle">
-            Wechsle nahtlos zwischen leistungsstarken Python-Tools wie dem
-            <strong>YouTube Downloader</strong> oder <strong>AI Background Remover</strong> und
-            interaktiven Party- & Denkspielen wie <strong>Tapple</strong>, <strong>5 Second Rule</strong>,
-            <strong>Tick Tack Bumm</strong> oder <strong>Anomia</strong>.
+            @if (modeService.isGames()) {
+              {{
+                langService.isEn()
+                  ? 'Engaging party and tabletop games for groups at the table or screen — no accounts, no ads, instant offline play.'
+                  : 'Lokale Partyspiele für gemeinsame Runden am Tisch oder Bildschirm – ohne Internetzwang, ohne Werbung, sofort spielbereit.'
+              }}
+            } @else {
+              {{
+                langService.isEn()
+                  ? 'High-performance local Python and browser utilities for video downloads, AI cutouts, format conversion, and diagnostics.'
+                  : 'Leistungsstarke Offline-Engines für Video-Download, KI-Freistellung, universelle Dateikonvertierung und Systemdiagnose.'
+              }}
+            }
           </p>
 
           <div class="hero-actions">
-            <a
-              [routerLink]="activeSpotlight().route"
-              class="btn-primary"
-              [style.background]="activeSpotlight().accentGradient"
+            @if (activeSpotlight(); as spot) {
+              <a [routerLink]="spot.route" class="btn-primary">
+                <span>{{ spot.icon }} {{ spot.title }}</span>
+                <span class="arrow">→</span>
+              </a>
+            }
+
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="modeService.toggleMode()"
+              [title]="modeService.isGames() ? 'Zu Notebook & Werkzeugen wechseln' : 'Zu den Spielen wechseln'"
             >
-              <span>{{ activeSpotlight().icon }} {{ activeSpotlight().title }} starten</span>
-              <span class="arrow">→</span>
-            </a>
-            <button type="button" class="btn-secondary" (click)="selectCategory('programs')">
-              ⚡ Programme ({{ programsCount() }})
-            </button>
-            <button type="button" class="btn-secondary" (click)="selectCategory('games')">
-              🎮 Spiele ({{ gamesCount() }})
+              <span>{{ modeService.isGames() ? '📓 Zu Notebook & Tools' : '🎮 Zu den Spielen' }}</span>
             </button>
           </div>
         </div>
 
-        <!-- ROTATING SPOTLIGHT CAROUSEL CARD (ALL PROGRAMS & GAMES) -->
+        <!-- SPOTLIGHT CARD: ROTATES ONLY WITHIN ACTIVE MODE -->
         @if (activeSpotlight(); as spot) {
           <div
             class="hero-spotlight"
             (mouseenter)="pauseSpotlight()"
             (mouseleave)="resumeSpotlight()"
           >
-            <div
-              class="spotlight-card"
-              [style.--spot-glow]="spot.glowColor"
-              [style.--spot-gradient]="spot.accentGradient"
-            >
-              <!-- AUTO-CYCLE PROGRESS BAR -->
+            <div class="spotlight-card">
+              <!-- HAIRLINE PROGRESS INDICATOR -->
               <div class="spotlight-progress-track">
-                <div
-                  class="spotlight-progress-fill"
-                  [style.width.%]="spotlightProgress()"
-                  [style.background]="spot.accentGradient"
-                ></div>
+                <div class="spotlight-progress-fill" [style.width.%]="spotlightProgress()"></div>
               </div>
 
-              <!-- TOP ROW: CATEGORY TAG, BADGE & PREV/NEXT CONTROLS -->
+              <!-- TOP BAR: BADGES + NAV -->
               <div class="spotlight-top">
                 <div class="spotlight-badges">
-                  <span class="spotlight-tag" [class.is-game]="spot.category === 'games'">
-                    {{ spot.category === 'games' ? '🎮 SPIEL SPOTLIGHT' : '⚡ PROGRAMM SPOTLIGHT' }}
+                  <span class="spot-pill">
+                    {{ modeService.isGames() ? 'SPIEL-SPOTLIGHT' : 'TOOL-SPOTLIGHT' }}
                   </span>
-                  <span class="python-chip">{{ spot.badge }}</span>
+                  <span class="spot-badge-chip">{{ spot.badge }}</span>
                 </div>
 
                 <div class="spotlight-nav">
@@ -92,26 +112,28 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
                     class="spot-nav-btn"
                     (click)="prevSpotlight()"
                     title="Vorheriges Highlight"
+                    aria-label="Vorheriges Highlight"
                   >
                     ‹
                   </button>
                   <span class="spot-counter">
-                    {{ spotlightIndex() + 1 }} / {{ items().length }}
+                    {{ formatIndex(spotlightIndex() + 1) }} / {{ formatIndex(modeItems().length) }}
                   </span>
                   <button
                     type="button"
                     class="spot-nav-btn"
                     (click)="nextSpotlight()"
                     title="Nächstes Highlight"
+                    aria-label="Nächstes Highlight"
                   >
                     ›
                   </button>
                 </div>
               </div>
 
-              <!-- ICON, TITLE & SUBTITLE -->
+              <!-- TITLE ROW -->
               <div class="spotlight-title-row">
-                <div class="spotlight-icon" [style.background]="spot.accentGradient">
+                <div class="spotlight-icon-box">
                   {{ spot.icon }}
                 </div>
                 <div class="spotlight-headings">
@@ -120,29 +142,30 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
                 </div>
               </div>
 
-              <!-- SHORT DESCRIPTION -->
+              <!-- DESCRIPTION -->
               <p class="spotlight-desc">{{ spot.description }}</p>
 
-              <!-- 4 BULLET HIGHLIGHTS -->
+              <!-- HIGHLIGHTS LIST -->
               <div class="spotlight-features">
                 @for (feat of spot.highlights; track feat) {
-                  <div class="feat-item">✓ {{ feat }}</div>
+                  <div class="feat-item">
+                    <span class="feat-bullet">✓</span>
+                    <span class="feat-text">{{ feat }}</span>
+                  </div>
                 }
               </div>
 
-              <!-- ACTION CTA BUTTON -->
-              <a
-                [routerLink]="spot.route"
-                class="spotlight-cta"
-                [style.background]="spot.accentGradient"
-              >
-                <span>{{ spot.category === 'games' ? '🎮 Jetzt spielen' : '🚀 Programm öffnen' }}</span>
-                <span>↗</span>
-              </a>
+              <!-- BOTTOM LAUNCH CTA -->
+              <div class="spotlight-footer">
+                <a [routerLink]="spot.route" class="spotlight-cta">
+                  <span>{{ modeService.isGames() ? 'Jetzt spielen' : 'Programm öffnen' }}</span>
+                  <span class="cta-arrow">→</span>
+                </a>
+              </div>
 
-              <!-- QUICK ICON SELECTOR STRIP FOR ALL ITEMS -->
-              <div class="spotlight-dots" role="tablist" aria-label="Spotlight Auswahl">
-                @for (item of items(); track item.id; let idx = $index) {
+              <!-- SELECTOR STRIP FOR ITEMS IN CURRENT MODE -->
+              <div class="spotlight-dots" role="tablist" aria-label="Spotlight Schnellauswahl">
+                @for (item of modeItems(); track item.id; let idx = $index) {
                   <button
                     type="button"
                     class="spot-dot-btn"
@@ -160,373 +183,332 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
       </section>
 
       <!-- FILTER & SEARCH BAR -->
-      <section class="controls-bar glass-panel">
-        <div class="category-tabs" role="tablist">
+      <section class="controls-bar">
+        <div class="filter-tabs" role="tablist">
           <button
             type="button"
             class="tab-btn"
-            [class.active]="selectedCategory() === 'all'"
-            (click)="selectCategory('all')"
+            [class.active]="selectedFilter() === 'all' && !selectedTag()"
+            (click)="selectFilter('all')"
           >
-            <span>✨ Alle</span>
-            <span class="count-pill">{{ items().length }}</span>
+            <span>{{ modeService.isGames() ? (langService.isEn() ? 'All Games' : 'Alle Spiele') : (langService.isEn() ? 'All Tools' : 'Alle Werkzeuge') }}</span>
+            <span class="count-pill">{{ totalModeCount() }}</span>
           </button>
 
           <button
             type="button"
             class="tab-btn"
-            [class.active]="selectedCategory() === 'programs'"
-            (click)="selectCategory('programs')"
+            [class.active]="selectedFilter() === 'favorites'"
+            (click)="selectFilter('favorites')"
           >
-            <span>⚡ Programme</span>
-            <span class="count-pill">{{ programsCount() }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="selectedCategory() === 'games'"
-            (click)="selectCategory('games')"
-          >
-            <span>🎮 Spiele</span>
-            <span class="count-pill">{{ gamesCount() }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="tab-btn"
-            [class.active]="selectedCategory() === 'favorites'"
-            (click)="selectCategory('favorites')"
-          >
-            <span>⭐ Favoriten</span>
-            <span class="count-pill">{{ favorites().length }}</span>
+            <span>★ {{ langService.isEn() ? 'Favorites' : 'Favoriten' }}</span>
+            <span class="count-pill">{{ favoriteCount() }}</span>
           </button>
         </div>
 
         <div class="search-box">
-          <span class="search-icon">🔍</span>
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" />
+          </svg>
           <input
             type="text"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
-            placeholder="Suche nach Programmen, Spielen, Python, Tapple..."
+            [placeholder]="
+              modeService.isGames()
+                ? (langService.isEn() ? 'Search games, rules, buzzer...' : 'Suche nach Spielen, Regeln, Tapple...')
+                : (langService.isEn() ? 'Search tools, python, converter...' : 'Suche nach Tools, Python, Konverter...')
+            "
             class="search-input"
           />
           @if (searchQuery()) {
-            <button type="button" class="clear-btn" (click)="searchQuery.set('')">✕</button>
+            <button type="button" class="clear-btn" (click)="searchQuery.set('')" title="Suche leeren">✕</button>
           }
         </div>
       </section>
 
-      <!-- CONTENT SECTIONS -->
-      @if (selectedCategory() === 'all' && !searchQuery().trim()) {
-        <!-- SECTION: PROGRAMME -->
-        <section class="category-section">
-          <div class="section-header">
-            <div class="section-title-group">
-              <div class="section-icon programs-bg">⚡</div>
-              <div>
-                <h2>Programme & Tools</h2>
-                <p>Nützliche Anwendungen, Konverter & Python-gestützte Werkzeuge</p>
-              </div>
-            </div>
-            <button type="button" class="section-link" (click)="selectCategory('programs')">
-              Nur Programme zeigen →
+      <!-- TAG FILTER STRIP (OPTIONAL DRILL-DOWN) -->
+      @if (availableTags().length > 0) {
+        <div class="tags-strip" aria-label="Schlagwort-Filter">
+          <span class="tags-label">{{ langService.isEn() ? 'Filter by topic:' : 'Themen:' }}</span>
+          @for (tag of availableTags(); track tag) {
+            <button
+              type="button"
+              class="tag-filter-chip"
+              [class.active]="selectedTag() === tag"
+              (click)="toggleTag(tag)"
+            >
+              {{ tag }}
             </button>
-          </div>
-
-          <div class="cards-grid">
-            @for (item of programItems(); track item.id) {
-              <ng-container *ngTemplateOutlet="cardTemplate; context: { $implicit: item }"></ng-container>
-            }
-          </div>
-        </section>
-
-        <!-- SECTION: SPIELE -->
-        <section class="category-section">
-          <div class="section-header">
-            <div class="section-title-group">
-              <div class="section-icon games-bg">🎮</div>
-              <div>
-                <h2>Spiele & Party-Games</h2>
-                <p>Interaktive Party-, Karten- & Arcade-Games für 1 bis 8 Spieler</p>
-              </div>
-            </div>
-            <button type="button" class="section-link" (click)="selectCategory('games')">
-              Nur Spiele zeigen →
-            </button>
-          </div>
-
-          <div class="cards-grid">
-            @for (item of gameItems(); track item.id) {
-              <ng-container *ngTemplateOutlet="cardTemplate; context: { $implicit: item }"></ng-container>
-            }
-          </div>
-        </section>
-      } @else {
-        <!-- FILTERED VIEW -->
-        <section class="category-section">
-          <div class="section-header">
-            <div class="section-title-group">
-              <div class="section-icon" [class.programs-bg]="selectedCategory() === 'programs'" [class.games-bg]="selectedCategory() === 'games'">
-                {{
-                  selectedCategory() === 'programs'
-                    ? '⚡'
-                    : selectedCategory() === 'games'
-                      ? '🎮'
-                      : selectedCategory() === 'favorites'
-                        ? '⭐'
-                        : '🔎'
-                }}
-              </div>
-              <div>
-                <h2>{{ activeSectionTitle() }}</h2>
-                <p>{{ filteredItems().length }} Einträge gefunden</p>
-              </div>
-            </div>
-            @if (selectedCategory() !== 'all' || searchQuery()) {
-              <button type="button" class="section-link" (click)="resetFilters()">
-                Filter zurücksetzen ✕
-              </button>
-            }
-          </div>
-
-          @if (filteredItems().length > 0) {
-            <div class="cards-grid">
-              @for (item of filteredItems(); track item.id) {
-                <ng-container *ngTemplateOutlet="cardTemplate; context: { $implicit: item }"></ng-container>
-              }
-            </div>
-          } @else {
-            <div class="empty-state glass-panel">
-              <div class="empty-icon">🌌</div>
-              <h3>Keine Einträge gefunden</h3>
-              <p>
-                Für deine aktuelle Auswahl oder Suche gibt es noch keine Treffer.
-              </p>
-              <button type="button" class="btn-secondary" (click)="resetFilters()">
-                Alle Kategorien anzeigen
-              </button>
-            </div>
           }
-        </section>
+          @if (selectedTag()) {
+            <button type="button" class="tag-reset-link" (click)="selectedTag.set(null)">
+              {{ langService.isEn() ? 'Clear topic ✕' : 'Thema aufheben ✕' }}
+            </button>
+          }
+        </div>
       }
 
-      <!-- REUSABLE CARD TEMPLATE -->
-      <ng-template #cardTemplate let-item>
-        <article
-          class="catalog-card glass-panel"
-          [class.featured-card]="item.featured"
-          [style.--card-glow]="item.glowColor"
-          [style.--card-gradient]="item.accentGradient"
-        >
-          <div class="card-accent-bar" [style.background]="item.accentGradient"></div>
-
-          <div class="card-top-row">
-            <div class="card-icon-wrap" [style.background]="item.accentGradient">
-              <span>{{ item.icon }}</span>
-            </div>
-
-            <div class="card-badges">
-              <span class="item-badge" [attr.data-type]="item.badgeType">
-                {{ item.badge }}
-              </span>
-              <button
-                type="button"
-                class="fav-btn"
-                [class.active]="isFavorite(item.id)"
-                (click)="toggleFavorite(item.id, $event)"
-                title="Als Favorit merken"
-              >
-                {{ isFavorite(item.id) ? '★' : '☆' }}
-              </button>
-            </div>
+      <!-- CATALOG GRID -->
+      <section class="catalog-section">
+        <div class="section-meta-row">
+          <div class="section-title-wrap">
+            <h2 class="section-heading">
+              @if (selectedFilter() === 'favorites') {
+                {{ langService.isEn() ? 'Saved Favorites' : 'Gespeicherte Favoriten' }}
+              } @else if (selectedTag()) {
+                {{ langService.isEn() ? 'Filtered by: ' + selectedTag() : 'Gefiltert nach: ' + selectedTag() }}
+              } @else if (searchQuery()) {
+                {{ langService.isEn() ? 'Search Results' : 'Suchergebnisse' }}
+              } @else {
+                {{ modeService.isGames() ? (langService.isEn() ? 'Active Games Collection' : 'Aktive Spielesammlung') : (langService.isEn() ? 'Local Tools & Engines' : 'Lokale Werkzeuge & Engines') }}
+              }
+            </h2>
+            <span class="section-count-label">
+              {{ displayedItems().length }} {{ displayedItems().length === 1 ? (langService.isEn() ? 'entry' : 'Eintrag') : (langService.isEn() ? 'entries' : 'Einträge') }}
+            </span>
           </div>
 
-          <div class="card-body">
-            <span class="card-category-label">{{ item.categoryLabel }}</span>
-            <h3 class="card-title">{{ item.title }}</h3>
-            <p class="card-subtitle">{{ item.subtitle }}</p>
-            <p class="card-desc">{{ item.description }}</p>
-          </div>
+          @if (selectedFilter() !== 'all' || selectedTag() || searchQuery()) {
+            <button type="button" class="reset-filters-btn" (click)="resetFilters()">
+              {{ langService.isEn() ? 'Reset filters ✕' : 'Filter zurücksetzen ✕' }}
+            </button>
+          }
+        </div>
 
-          <div class="card-tags">
-            @for (tag of item.tags; track tag) {
-              <span class="tag-chip">{{ tag }}</span>
+        @if (displayedItems().length > 0) {
+          <div class="cards-grid">
+            @for (item of displayedItems(); track item.id) {
+              <article class="catalog-card">
+                <div class="card-accent-line"></div>
+
+                <div class="card-top">
+                  <div class="card-icon-box">
+                    <span>{{ item.icon }}</span>
+                  </div>
+
+                  <div class="card-top-badges">
+                    <span class="card-badge-chip">{{ item.badge }}</span>
+                    <button
+                      type="button"
+                      class="fav-btn"
+                      [class.active]="isFavorite(item.id)"
+                      (click)="toggleFavorite(item.id, $event)"
+                      [title]="isFavorite(item.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                      [attr.aria-label]="isFavorite(item.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'"
+                    >
+                      {{ isFavorite(item.id) ? '★' : '☆' }}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <span class="card-cat-meta">{{ item.categoryLabel }}</span>
+                  <h3 class="card-title">{{ item.title }}</h3>
+                  <p class="card-subtitle">{{ item.subtitle }}</p>
+                  <p class="card-description">{{ item.description }}</p>
+                </div>
+
+                <div class="card-tags-row">
+                  @for (t of item.tags.slice(0, 4); track t) {
+                    <span class="card-tag">{{ t }}</span>
+                  }
+                </div>
+
+                <div class="card-footer">
+                  <span class="card-stats">{{ item.statsLabel || '' }}</span>
+                  <a [routerLink]="item.route" class="card-launch-btn">
+                    <span>{{ item.category === 'games' ? (langService.isEn() ? 'Play' : 'Spielen') : (langService.isEn() ? 'Open' : 'Öffnen') }}</span>
+                    <span class="arrow">→</span>
+                  </a>
+                </div>
+              </article>
             }
           </div>
-
-          <div class="card-footer">
-            <span class="stats-label">{{ item.statsLabel }}</span>
-            <a [routerLink]="item.route" class="launch-btn" [style.background]="item.accentGradient">
-              <span>{{ item.category === 'games' ? 'Spielen' : 'Öffnen' }}</span>
-              <span class="launch-arrow">→</span>
-            </a>
+        } @else {
+          <div class="empty-state">
+            <div class="empty-icon-box">∅</div>
+            <h3>{{ langService.isEn() ? 'No items found' : 'Keine Einträge gefunden' }}</h3>
+            <p>
+              {{
+                langService.isEn()
+                  ? 'No entries match your current search or filter criteria in this mode.'
+                  : 'Für deine aktuelle Auswahl oder Suche gibt es in diesem Modus keine Treffer.'
+              }}
+            </p>
+            <button type="button" class="btn-secondary" (click)="resetFilters()">
+              {{ langService.isEn() ? 'Show all entries' : 'Alle Einträge anzeigen' }}
+            </button>
           </div>
-        </article>
-      </ng-template>
+        }
+      </section>
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+    }
+
     .dashboard-wrapper {
       display: flex;
       flex-direction: column;
-      gap: 2rem;
-      padding-bottom: 3rem;
+      gap: 24px;
+      padding-bottom: 48px;
     }
 
-    /* HERO */
+    /* =========================================================================
+       HERO CARD (UNSLOPPED DIGITAL WORKSHOP / DESK)
+       ========================================================================= */
     .hero-card {
       position: relative;
-      overflow: hidden;
-      padding: 2.35rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      padding: 28px;
       display: grid;
-      grid-template-columns: 1.25fr 1.05fr;
-      gap: 2.25rem;
-      align-items: center;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      grid-template-columns: 1.25fr 1fr;
+      gap: 28px;
+      align-items: stretch;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     }
 
-    .hero-glow {
+    .hero-top-accent {
       position: absolute;
-      border-radius: 50%;
-      filter: blur(85px);
-      pointer-events: none;
-      z-index: 0;
-      transition: background 0.5s ease;
-    }
-
-    .hero-glow-1 {
-      width: 340px;
-      height: 340px;
-      background: rgba(99, 102, 241, 0.25);
-      top: -120px;
-      left: -80px;
-    }
-
-    .hero-glow-2 {
-      width: 360px;
-      height: 360px;
-      background: rgba(244, 63, 94, 0.25);
-      bottom: -140px;
-      right: 8%;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0.8;
     }
 
     .hero-content {
-      position: relative;
-      z-index: 1;
       display: flex;
       flex-direction: column;
-      gap: 1.15rem;
+      gap: 16px;
+      justify-content: center;
+      z-index: 1;
     }
 
-    .hero-badge-row {
+    .hero-meta-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      gap: 0.75rem;
+      gap: 8px;
     }
 
-    .pulse-badge {
+    .mode-tag-chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0.85rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      background: rgba(99, 102, 241, 0.16);
-      color: #a5b4fc;
-      border: 1px solid rgba(99, 102, 241, 0.35);
-    }
-
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #818cf8;
-      box-shadow: 0 0 10px #818cf8;
-    }
-
-    .status-pill {
-      padding: 0.35rem 0.85rem;
-      border-radius: 999px;
-      font-size: 0.76rem;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-active);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-subtle);
+      letter-spacing: 0.05em;
     }
 
-    .status-pill.online {
-      background: rgba(16, 185, 129, 0.14);
+    .mode-tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+    }
+
+    .status-chip.online {
       color: #6ee7b7;
-      border-color: rgba(16, 185, 129, 0.35);
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .count-chip {
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-variant-numeric: tabular-nums;
     }
 
     .hero-title {
-      font-family: var(--font-display);
-      font-size: clamp(2rem, 3.6vw, 3rem);
-      font-weight: 800;
-      line-height: 1.12;
       margin: 0;
-      letter-spacing: -0.03em;
-    }
-
-    .gradient-text-cyan {
-      background: linear-gradient(135deg, #22d3ee 0%, #818cf8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .gradient-text-rose {
-      background: linear-gradient(135deg, #fb7185 0%, #c084fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      font-family: var(--font-sans);
+      font-size: clamp(1.75rem, 3vw, 2.35rem);
+      font-weight: 700;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
     }
 
     .hero-subtitle {
-      font-size: 0.98rem;
+      margin: 0;
+      font-size: 0.95rem;
       line-height: 1.6;
       color: var(--text-secondary);
-      margin: 0;
       max-width: 58ch;
-    }
-
-    .hero-subtitle strong {
-      color: var(--text-primary);
     }
 
     .hero-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
-      margin-top: 0.35rem;
+      gap: 12px;
+      align-items: center;
+      margin-top: 4px;
     }
 
-    /* ROTATING SPOTLIGHT CAROUSEL */
+    .hero-actions .btn-primary,
+    .hero-actions .btn-secondary {
+      font-size: 0.88rem;
+      padding: 8px 16px;
+    }
+
+    /* =========================================================================
+       SPOTLIGHT COMPONENT (TACTILE & QUIET)
+       ========================================================================= */
     .hero-spotlight {
-      position: relative;
-      z-index: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     .spotlight-card {
       position: relative;
-      overflow: hidden;
-      background: linear-gradient(160deg, rgba(24, 28, 44, 0.92) 0%, rgba(13, 17, 29, 0.96) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.16);
-      border-radius: 20px;
-      padding: 1.45rem;
-      box-shadow: 0 22px 48px -14px var(--spot-glow, rgba(244, 63, 94, 0.32));
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 0.95rem;
-      transition: box-shadow 0.35s ease, border-color 0.35s ease;
-    }
-
-    .spotlight-card:hover {
-      border-color: rgba(255, 255, 255, 0.28);
+      gap: 14px;
+      height: 100%;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     .spotlight-progress-track {
@@ -534,125 +516,122 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
       top: 0;
       left: 0;
       right: 0;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.06);
+      height: 2px;
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .spotlight-progress-fill {
       height: 100%;
-      transition: width 0.1s linear;
+      background: var(--accent);
+      transition: width 0.09s linear;
     }
 
     .spotlight-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .spotlight-badges {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
+      gap: 6px;
       flex-wrap: wrap;
     }
 
-    .spotlight-tag {
-      font-size: 0.68rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      color: #fda4af;
-      background: rgba(244, 63, 94, 0.18);
-      border: 1px solid rgba(244, 63, 94, 0.35);
-      padding: 0.24rem 0.6rem;
-      border-radius: 6px;
-    }
-
-    .spotlight-tag.is-game {
-      color: #67e8f9;
-      background: rgba(6, 182, 212, 0.16);
-      border-color: rgba(6, 182, 212, 0.35);
-    }
-
-    .python-chip {
+    .spot-pill {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: #fde047;
-      background: rgba(234, 179, 8, 0.14);
-      border: 1px solid rgba(234, 179, 8, 0.3);
-      padding: 0.22rem 0.55rem;
-      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      background: var(--accent-subtle);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--accent);
+    }
+
+    .spot-badge-chip {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      background: var(--bg-surface-active);
+      border: 1px solid var(--border-subtle);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
     }
 
     .spotlight-nav {
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 4px;
     }
 
     .spot-nav-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border-subtle);
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg-surface-active);
       color: var(--text-primary);
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       line-height: 1;
       cursor: pointer;
       display: grid;
       place-items: center;
-      transition: all 0.18s ease;
+      transition: all 0.15s ease;
     }
 
     .spot-nav-btn:hover {
-      background: rgba(255, 255, 255, 0.14);
-      border-color: rgba(255, 255, 255, 0.28);
+      background: var(--bg-surface-hover);
+      border-color: var(--border-strong);
     }
 
     .spot-counter {
       font-family: var(--font-mono);
       font-size: 0.72rem;
-      color: var(--text-secondary);
-      min-width: 38px;
+      color: var(--text-muted);
+      min-width: 48px;
       text-align: center;
+      font-variant-numeric: tabular-nums;
     }
 
     .spotlight-title-row {
       display: flex;
       align-items: center;
-      gap: 0.95rem;
+      gap: 12px;
     }
 
-    .spotlight-icon {
-      width: 54px;
-      height: 54px;
-      border-radius: 15px;
+    .spotlight-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-active);
+      border: 1px solid var(--border-subtle);
       display: grid;
       place-items: center;
-      font-size: 1.7rem;
+      font-size: 1.45rem;
       flex-shrink: 0;
-      box-shadow: 0 10px 22px -6px rgba(0, 0, 0, 0.55);
     }
 
     .spotlight-headings h3 {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: 1.25rem;
-      font-weight: 800;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
     }
 
     .spot-sub {
-      margin: 0.18rem 0 0;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #cbd5e1;
+      margin: 2px 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
     }
 
     .spotlight-desc {
       margin: 0;
-      font-size: 0.83rem;
+      font-size: 0.85rem;
       line-height: 1.5;
       color: var(--text-secondary);
       display: -webkit-box;
@@ -664,435 +643,544 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
     .spotlight-features {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.45rem 0.65rem;
-      font-size: 0.78rem;
-      color: #e2e8f0;
-      background: rgba(0, 0, 0, 0.28);
-      padding: 0.75rem 0.85rem;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      gap: 6px 10px;
+      padding: 10px 12px;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 0.76rem;
     }
 
     .feat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .feat-bullet {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .feat-text {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: var(--text-secondary);
+    }
+
+    .spotlight-footer {
+      display: flex;
+      align-items: center;
     }
 
     .spotlight-cta {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.45rem;
-      padding: 0.72rem;
-      border-radius: 12px;
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.9rem;
-      box-shadow: 0 10px 24px -8px var(--spot-glow, rgba(99, 102, 241, 0.5));
-      transition: transform 0.2s ease, opacity 0.2s ease;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      background: var(--accent);
+      color: #0b0d12;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
     }
 
     .spotlight-cta:hover {
-      transform: translateY(-2px);
-      opacity: 0.96;
+      opacity: 0.92;
+      transform: translateY(-1px);
     }
 
     .spotlight-dots {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 0.32rem;
-      padding-top: 0.25rem;
+      gap: 4px;
+      padding-top: 2px;
     }
 
     .spot-dot-btn {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      background: rgba(255, 255, 255, 0.03);
-      font-size: 0.88rem;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface-active);
+      font-size: 0.82rem;
       cursor: pointer;
       display: grid;
       place-items: center;
-      opacity: 0.55;
-      transition: all 0.18s ease;
+      opacity: 0.6;
+      transition: all 0.15s ease;
     }
 
     .spot-dot-btn:hover {
       opacity: 0.9;
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--bg-surface-hover);
     }
 
     .spot-dot-btn.active {
       opacity: 1;
-      background: rgba(255, 255, 255, 0.14);
-      border-color: rgba(255, 255, 255, 0.38);
-      transform: translateY(-2px);
+      border-color: var(--accent);
+      background: var(--accent-subtle);
     }
 
-    /* CONTROLS BAR */
+    /* =========================================================================
+       CONTROLS BAR (TABS & SEARCH)
+       ========================================================================= */
     .controls-bar {
-      padding: 0.9rem 1.15rem;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 1rem;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
     }
 
-    .category-tabs {
+    .filter-tabs {
       display: flex;
+      align-items: center;
+      gap: 6px;
       flex-wrap: wrap;
-      gap: 0.5rem;
     }
 
     .tab-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.55rem;
-      padding: 0.6rem 1.05rem;
-      border-radius: 12px;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: var(--radius-md);
       border: 1px solid transparent;
-      background: rgba(255, 255, 255, 0.04);
+      background: transparent;
       color: var(--text-secondary);
-      font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
 
     .tab-btn:hover {
       color: var(--text-primary);
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--bg-surface-hover);
     }
 
     .tab-btn.active {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(139, 92, 246, 0.28));
-      color: #fff;
-      border-color: rgba(139, 92, 246, 0.55);
-      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+      color: var(--text-primary);
+      background: var(--bg-surface-active);
+      border-color: var(--border-strong);
     }
 
     .count-pill {
-      padding: 0.12rem 0.5rem;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      font-variant-numeric: tabular-nums;
     }
 
     .search-box {
       position: relative;
-      flex: 1;
-      min-width: 250px;
-      max-width: 380px;
       display: flex;
       align-items: center;
+      min-width: 260px;
+      flex: 1;
+      max-width: 360px;
     }
 
     .search-icon {
       position: absolute;
-      left: 0.9rem;
-      font-size: 0.95rem;
+      left: 10px;
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
       pointer-events: none;
     }
 
     .search-input {
       width: 100%;
-      padding: 0.68rem 2.2rem 0.68rem 2.45rem;
-      border-radius: 12px;
+      padding: 7px 28px 7px 32px;
+      border-radius: var(--radius-md);
       border: 1px solid var(--border-subtle);
-      background: rgba(7, 9, 14, 0.65);
+      background: var(--bg-canvas);
       color: var(--text-primary);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.15s ease;
     }
 
     .search-input:focus {
-      border-color: var(--accent-indigo);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      border-color: var(--accent);
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
     }
 
     .clear-btn {
       position: absolute;
-      right: 0.65rem;
+      right: 8px;
       background: none;
       border: none;
-      color: var(--text-secondary);
+      color: var(--text-muted);
       cursor: pointer;
       font-size: 0.85rem;
-      padding: 0.25rem;
+      padding: 2px 4px;
     }
 
-    /* CATEGORY SECTIONS */
-    .category-section {
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
+    .clear-btn:hover {
+      color: var(--text-primary);
     }
 
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 1rem;
-      padding: 0 0.25rem;
-    }
-
-    .section-title-group {
+    /* TAGS STRIP */
+    .tags-strip {
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 0 4px;
+      font-size: 0.78rem;
     }
 
-    .section-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      font-size: 1.35rem;
-      background: rgba(255, 255, 255, 0.07);
+    .tags-label {
+      color: var(--text-muted);
+      margin-right: 2px;
+      font-size: 0.76rem;
+    }
+
+    .tag-filter-chip {
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border-subtle);
-    }
-
-    .section-icon.programs-bg {
-      background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(168, 85, 247, 0.2));
-      border-color: rgba(244, 63, 94, 0.35);
-    }
-
-    .section-icon.games-bg {
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
-      border-color: rgba(6, 182, 212, 0.35);
-    }
-
-    .section-title-group h2 {
-      margin: 0;
-      font-family: var(--font-display);
-      font-size: 1.45rem;
-      font-weight: 700;
-    }
-
-    .section-title-group p {
-      margin: 0.2rem 0 0;
-      font-size: 0.9rem;
+      background: var(--bg-surface);
       color: var(--text-secondary);
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
     }
 
-    .section-link {
+    .tag-filter-chip:hover {
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .tag-filter-chip.active {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .tag-reset-link {
       background: none;
       border: none;
-      color: #a5b4fc;
-      font-weight: 600;
-      font-size: 0.88rem;
+      color: var(--text-muted);
+      font-size: 0.74rem;
       cursor: pointer;
-      padding: 0.4rem 0.6rem;
-      border-radius: 8px;
-      transition: background 0.2s ease;
+      padding: 2px 6px;
+      text-decoration: underline;
     }
 
-    .section-link:hover {
-      background: rgba(99, 102, 241, 0.12);
+    .tag-reset-link:hover {
+      color: var(--text-primary);
     }
 
-    /* CARDS GRID */
+    /* =========================================================================
+       CATALOG GRID & CARDS
+       ========================================================================= */
+    .catalog-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0 4px;
+    }
+
+    .section-title-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .section-heading {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .section-count-label {
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .reset-filters-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .reset-filters-btn:hover {
+      text-decoration: underline;
+    }
+
     .cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-      gap: 1.35rem;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 16px;
     }
 
     .catalog-card {
       position: relative;
-      overflow: hidden;
-      padding: 1.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 1.1rem;
-      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
+      gap: 12px;
+      overflow: hidden;
+      transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
     }
 
     .catalog-card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(255, 255, 255, 0.22);
-      box-shadow: 0 20px 40px -15px var(--card-glow, rgba(99, 102, 241, 0.3));
+      background: var(--bg-surface-hover);
+      border-color: var(--border-strong);
+      transform: translateY(-2px);
     }
 
-    .catalog-card.featured-card {
-      border-color: rgba(244, 63, 94, 0.38);
-    }
-
-    .card-accent-bar {
+    .card-accent-line {
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
-      height: 4px;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0.45;
     }
 
-    .card-top-row {
+    .catalog-card:hover .card-accent-line {
+      opacity: 1;
+    }
+
+    .card-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 0.75rem;
+      gap: 8px;
     }
 
-    .card-icon-wrap {
-      width: 52px;
-      height: 52px;
-      border-radius: 15px;
+    .card-icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-active);
+      border: 1px solid var(--border-subtle);
       display: grid;
       place-items: center;
-      font-size: 1.6rem;
-      box-shadow: 0 10px 20px -6px rgba(0, 0, 0, 0.5);
+      font-size: 1.35rem;
     }
 
-    .card-badges {
+    .card-top-badges {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
+      gap: 6px;
     }
 
-    .item-badge {
-      padding: 0.3rem 0.7rem;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 600;
-      background: rgba(255, 255, 255, 0.07);
+    .card-badge-chip {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-active);
       border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-    }
-
-    .item-badge[data-type='python'] {
-      background: rgba(244, 63, 94, 0.16);
-      border-color: rgba(244, 63, 94, 0.4);
-      color: #fda4af;
+      color: var(--text-secondary);
     }
 
     .fav-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border-subtle);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-secondary);
-      font-size: 1.05rem;
+      background: var(--bg-surface-active);
+      color: var(--text-muted);
+      font-size: 0.95rem;
       cursor: pointer;
       display: grid;
       place-items: center;
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
+    }
+
+    .fav-btn:hover {
+      color: #fbbf24;
+      border-color: rgba(251, 191, 36, 0.4);
     }
 
     .fav-btn.active {
       color: #fbbf24;
-      border-color: rgba(251, 191, 36, 0.45);
       background: rgba(251, 191, 36, 0.12);
+      border-color: rgba(251, 191, 36, 0.5);
     }
 
     .card-body {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
+      gap: 4px;
       flex: 1;
     }
 
-    .card-category-label {
-      font-size: 0.74rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
+    .card-cat-meta {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
       color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .card-title {
       margin: 0;
-      font-family: var(--font-display);
-      font-size: 1.3rem;
+      font-size: 1.1rem;
       font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
     }
 
     .card-subtitle {
       margin: 0;
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: #cbd5e1;
-    }
-
-    .card-desc {
-      margin: 0.4rem 0 0;
-      font-size: 0.88rem;
-      line-height: 1.55;
+      font-size: 0.8rem;
       color: var(--text-secondary);
+      font-weight: 500;
     }
 
-    .card-tags {
+    .card-description {
+      margin: 4px 0 0;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-tags-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.4rem;
+      gap: 4px;
     }
 
-    .tag-chip {
-      padding: 0.22rem 0.6rem;
-      border-radius: 8px;
-      font-size: 0.74rem;
-      font-weight: 500;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-secondary);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+    .card-tag {
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 0.7rem;
+      background: var(--bg-surface-active);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
     }
 
     .card-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-top: 0.9rem;
+      padding-top: 10px;
       border-top: 1px solid var(--border-subtle);
     }
 
-    .stats-label {
-      font-size: 0.8rem;
-      font-weight: 500;
+    .card-stats {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
       color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
     }
 
-    .launch-btn {
+    .card-launch-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 1.05rem;
-      border-radius: 10px;
-      color: #fff;
-      font-weight: 600;
-      font-size: 0.86rem;
-      transition: transform 0.2s ease, opacity 0.2s ease;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-active);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.15s ease;
     }
 
-    .launch-btn:hover {
-      transform: translateX(3px);
-      opacity: 0.95;
+    .card-launch-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0b0d12;
     }
 
+    .card-launch-btn .arrow {
+      transition: transform 0.15s ease;
+    }
+
+    .card-launch-btn:hover .arrow {
+      transform: translateX(2px);
+    }
+
+    /* EMPTY STATE */
     .empty-state {
-      padding: 3rem 1.5rem;
+      padding: 48px 16px;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.75rem;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-lg);
     }
 
-    .empty-icon {
-      font-size: 2.5rem;
+    .empty-icon-box {
+      font-family: var(--font-mono);
+      font-size: 1.8rem;
+      color: var(--text-muted);
+    }
+
+    .empty-state h3 {
+      margin: 0;
+      font-size: 1.05rem;
+      color: var(--text-primary);
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      max-width: 44ch;
     }
 
     @media (max-width: 960px) {
       .hero-card {
         grid-template-columns: 1fr;
-        padding: 1.75rem;
+        padding: 20px;
+        gap: 20px;
       }
+
       .search-box {
         max-width: 100%;
       }
@@ -1101,10 +1189,13 @@ import { YtDownloaderService } from '../../services/yt-downloader.service';
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private readonly ytService = inject(YtDownloaderService);
+  readonly modeService = inject(ModeService);
+  readonly langService = inject(LanguageService);
 
-  readonly items = signal<CatalogItem[]>(CATALOG_ITEMS);
-  readonly selectedCategory = signal<CategoryType>('all');
+  readonly allItems = signal<CatalogItem[]>(CATALOG_ITEMS);
   readonly searchQuery = signal<string>('');
+  readonly selectedFilter = signal<'all' | 'favorites'>('all');
+  readonly selectedTag = signal<string | null>(null);
   readonly favorites = signal<string[]>(this.loadFavorites());
   readonly backendOnline = signal<boolean>(false);
 
@@ -1114,44 +1205,50 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private spotlightPaused = false;
   private spotlightTimer: ReturnType<typeof setInterval> | null = null;
 
-  readonly activeSpotlight = computed(
-    () => this.items()[this.spotlightIndex()] || this.items()[0]
-  );
-
-  readonly programItems = computed(() =>
-    this.items().filter((item) => item.category === 'programs')
-  );
-
-  readonly gameItems = computed(() =>
-    this.items().filter((item) => item.category === 'games')
-  );
-
-  readonly programsCount = computed(() => this.programItems().length);
-  readonly gamesCount = computed(() => this.gameItems().length);
-
-  readonly activeSectionTitle = computed(() => {
-    switch (this.selectedCategory()) {
-      case 'programs':
-        return 'Programme & Tools';
-      case 'games':
-        return 'Spiele & Party-Games';
-      case 'favorites':
-        return 'Deine Favoriten';
-      default:
-        return 'Suchergebnisse';
-    }
+  // Active items strictly filtered by the current mode (Games vs Notebook)
+  readonly modeItems = computed(() => {
+    const isNotebook = this.modeService.isNotebook();
+    const targetCategory = isNotebook ? 'programs' : 'games';
+    return this.allItems().filter((item) => item.category === targetCategory);
   });
 
-  readonly filteredItems = computed(() => {
-    const cat = this.selectedCategory();
+  readonly totalModeCount = computed(() => this.modeItems().length);
+
+  readonly favoriteCount = computed(() => {
+    const favs = this.favorites();
+    return this.modeItems().filter((item) => favs.includes(item.id)).length;
+  });
+
+  readonly activeSpotlight = computed(() => {
+    const items = this.modeItems();
+    if (items.length === 0) return this.allItems()[0];
+    const idx = Math.min(this.spotlightIndex(), items.length - 1);
+    return items[idx] || items[0];
+  });
+
+  readonly availableTags = computed(() => {
+    const tagSet = new Set<string>();
+    for (const item of this.modeItems()) {
+      for (const t of item.tags) {
+        tagSet.add(t);
+      }
+    }
+    return Array.from(tagSet).slice(0, 8);
+  });
+
+  readonly displayedItems = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
+    const filter = this.selectedFilter();
+    const tag = this.selectedTag();
     const favs = this.favorites();
 
-    return this.items().filter((item) => {
-      if (cat === 'programs' && item.category !== 'programs') return false;
-      if (cat === 'games' && item.category !== 'games') return false;
-      if (cat === 'favorites' && !favs.includes(item.id)) return false;
-
+    return this.modeItems().filter((item) => {
+      if (filter === 'favorites' && !favs.includes(item.id)) {
+        return false;
+      }
+      if (tag && !item.tags.includes(tag)) {
+        return false;
+      }
       if (!query) return true;
       return (
         item.title.toLowerCase().includes(query) ||
@@ -1161,6 +1258,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       );
     });
   });
+
+  constructor() {
+    // Reset spotlight index and tag when mode changes
+    effect(() => {
+      this.modeService.activeMode();
+      this.spotlightIndex.set(0);
+      this.spotlightProgress.set(0);
+      this.selectedTag.set(null);
+    });
+  }
 
   ngOnInit(): void {
     this.ytService.checkHealth().subscribe({
@@ -1204,13 +1311,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   nextSpotlight(): void {
-    const total = this.items().length;
+    const total = this.modeItems().length;
+    if (total <= 1) return;
     this.spotlightIndex.set((this.spotlightIndex() + 1) % total);
     this.spotlightProgress.set(0);
   }
 
   prevSpotlight(): void {
-    const total = this.items().length;
+    const total = this.modeItems().length;
+    if (total <= 1) return;
     this.spotlightIndex.set((this.spotlightIndex() - 1 + total) % total);
     this.spotlightProgress.set(0);
   }
@@ -1220,12 +1329,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.spotlightProgress.set(0);
   }
 
-  selectCategory(cat: CategoryType): void {
-    this.selectedCategory.set(cat);
+  selectFilter(filter: 'all' | 'favorites'): void {
+    this.selectedFilter.set(filter);
+    this.selectedTag.set(null);
+  }
+
+  toggleTag(tag: string): void {
+    if (this.selectedTag() === tag) {
+      this.selectedTag.set(null);
+    } else {
+      this.selectedTag.set(tag);
+    }
   }
 
   resetFilters(): void {
-    this.selectedCategory.set('all');
+    this.selectedFilter.set('all');
+    this.selectedTag.set(null);
     this.searchQuery.set('');
   }
 
@@ -1246,12 +1365,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } catch {}
   }
 
+  formatIndex(n: number): string {
+    return n < 10 ? '0' + n : '' + n;
+  }
+
   private loadFavorites(): string[] {
     try {
       const raw = localStorage.getItem('allinone_favorites');
-      return raw ? JSON.parse(raw) : ['yt-downloader'];
+      return raw ? JSON.parse(raw) : ['yt-downloader', 'tapple-wheel'];
     } catch {
-      return ['yt-downloader'];
+      return ['yt-downloader', 'tapple-wheel'];
     }
   }
 }
