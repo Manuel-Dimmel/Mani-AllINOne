@@ -1,8 +1,9 @@
-import { ChangeDetectorRef, Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { loadSavedPlayerNames, savePlayerNames } from '../../services/player-storage';
+import { LanguageService } from '../../services/language.service';
 
 export type Language = 'de' | 'en';
 export type SpecialEffectType = 'NONE' | 'BUCHSTABENDREHER' | 'DOPPELPACK' | 'AUSSETZER' | 'JACKPOT_BOOST';
@@ -2207,7 +2208,8 @@ interface UndoSnapshot {
 })
 export class VollpfostenGameComponent implements OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
-  lang: Language = 'de';
+  protected readonly languageService = inject(LanguageService);
+  lang: Language = this.languageService.currentLang();
   soundEnabled = true;
   showRulesPanel = false;
   showSettingsPanel = false;
@@ -2942,6 +2944,10 @@ export class VollpfostenGameComponent implements OnDestroy {
 
   constructor() {
     this.startNewGame();
+    effect(() => {
+      this.lang = this.languageService.currentLang();
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -3018,6 +3024,7 @@ export class VollpfostenGameComponent implements OnDestroy {
   }
 
   setLanguage(newLang: Language): void {
+    this.languageService.setLanguage(newLang);
     this.lang = newLang;
     // Update default player names if untouched
     this.players.forEach((p, idx) => {

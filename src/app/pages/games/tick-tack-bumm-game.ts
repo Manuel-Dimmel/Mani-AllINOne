@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, HostListener, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnDestroy, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { loadSavedPlayerNames, savePlayerNames } from '../../services/player-storage';
+import { LanguageService } from '../../services/language.service';
 
 type Lang = 'de' | 'en';
 type DieMode = 'CATEGORY' | 'TICK' | 'TACK' | 'BOMBE';
@@ -2460,7 +2461,8 @@ interface SpokenWordEntry {
 })
 export class TickTackBummGameComponent implements OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
-  lang: Lang = 'de';
+  protected readonly languageService = inject(LanguageService);
+  lang: Lang = this.languageService.currentLang();
   soundEnabled = true;
   showRules = false;
   showSettings = false;
@@ -3600,6 +3602,10 @@ export class TickTackBummGameComponent implements OnDestroy {
 
   constructor() {
     this.buildAndShuffleDeck();
+    effect(() => {
+      this.lang = this.languageService.currentLang();
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy(): void {
@@ -3643,6 +3649,7 @@ export class TickTackBummGameComponent implements OnDestroy {
   }
 
   setLang(newLang: Lang): void {
+    this.languageService.setLanguage(newLang);
     this.lang = newLang;
     // Update default player names if untouched
     this.players.forEach((p, idx) => {

@@ -1,8 +1,9 @@
-import { Component, HostListener, OnDestroy, computed, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { loadSavedPlayerNames, savePlayerNames } from '../../services/player-storage';
+import { LanguageService } from '../../services/language.service';
 
 export type TappleLang = 'de' | 'en';
 
@@ -1723,13 +1724,12 @@ const PLAYER_COLORS = [
   `],
 })
 export class TappleGameComponent implements OnDestroy {
+  protected readonly languageService = inject(LanguageService);
   readonly letters = TAPPLE_LETTERS;
 
-  // Language ('de' | 'en') persisted in localStorage
-  readonly lang = signal<TappleLang>(
-    (localStorage.getItem('allinone_tapple_lang') as TappleLang) === 'en' ? 'en' : 'de'
-  );
-  readonly isEn = computed(() => this.lang() === 'en');
+  // Global & locally persisted language
+  readonly lang = this.languageService.currentLang;
+  readonly isEn = this.languageService.isEn;
 
   // Power & Modals
   readonly powerOn = signal<boolean>(true);
@@ -1880,11 +1880,8 @@ export class TappleGameComponent implements OnDestroy {
   }
 
   setLanguage(l: TappleLang): void {
-    this.lang.set(l);
+    this.languageService.setLanguage(l);
     this.statusMessage.set('');
-    try {
-      localStorage.setItem('allinone_tapple_lang', l);
-    } catch {}
     // Passe Standard-Spielernamen sanft an, falls sie noch unverändert sind
     this.players.update((list) =>
       list.map((p, idx) => {

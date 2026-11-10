@@ -1,8 +1,9 @@
-import { Component, HostListener, OnDestroy, computed, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { loadSavedPlayerNames, savePlayerNames } from '../../services/player-storage';
+import { LanguageService } from '../../services/language.service';
 
 export type FiveSecLang = 'de' | 'en';
 
@@ -2874,8 +2875,9 @@ export const FIVE_SEC_DECK: FiveSecQuestionCard[] = [
   `,
 })
 export class FiveSecondsGameComponent implements OnDestroy {
-  readonly lang = signal<FiveSecLang>('de');
-  readonly isEn = computed(() => this.lang() === 'en');
+  protected readonly languageService = inject(LanguageService);
+  readonly lang = this.languageService.currentLang;
+  readonly isEn = this.languageService.isEn;
 
   readonly audioOn = signal(true);
   readonly showRulesModal = signal(false);
@@ -2977,7 +2979,7 @@ export class FiveSecondsGameComponent implements OnDestroy {
   }
 
   setLanguage(newLang: FiveSecLang): void {
-    this.lang.set(newLang);
+    this.languageService.setLanguage(newLang);
     if (!this.timerRunning() && !this.roundCompleted()) {
       this.statusMessage.set(
         newLang === 'en'

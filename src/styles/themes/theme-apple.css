@@ -1,0 +1,961 @@
+/**
+ * ============================================================================
+ * Apple Human Interface Guidelines (HIG) Theme for AllInOne
+ * ============================================================================
+ * Design Philosophy & HIG Lenses:
+ * 1. Foundations: System Colors (Cupertino Dark Mode), Dynamic Optical Sizing
+ * 2. Materials: Dual-layer hierarchy (Functional Liquid Glass vs. Content Materials)
+ * 3. Restraint & Craft: Subdued ambient lighting, single accent focus, hairline borders
+ * 4. Typography: San Francisco system family with optical tracking and hierarchy
+ * 5. Accessibility: Contrast ratios >= 4.5:1, touch/pointer targets, reduced motion & contrast support
+ * ============================================================================
+ */
+
+/* ==========================================================================
+   1. CSS VARIABLES & SYSTEM TOKENS
+   ========================================================================== */
+html[data-theme="apple"] {
+  /* --- Apple Dark Mode System Backgrounds (Cupertino Hierarchy) --- */
+  --bg-primary: #000000;                     /* System Background (OLED / True Black) */
+  --bg-secondary: #1c1c1e;                   /* Secondary System Background (Cupertino Gray 6) */
+  --bg-tertiary: #2c2c2e;                    /* Tertiary System Background (Cupertino Gray 5) */
+  --bg-card: rgba(28, 28, 30, 0.78);         /* Cupertino Thick Material */
+  --bg-card-hover: rgba(44, 44, 46, 0.88);   /* Cupertino Elevated Material */
+  --bg-glass: rgba(28, 28, 30, 0.72);        /* Liquid Glass Functional Layer */
+
+  /* --- Apple Hairline Borders & Separators --- */
+  --border-subtle: rgba(255, 255, 255, 0.09);    /* Standard hairline separator (1px) */
+  --border-highlight: rgba(255, 255, 255, 0.18); /* Focus & active border highlight */
+  --border-glass: rgba(255, 255, 255, 0.12);     /* Liquid Glass perimeter border */
+
+  /* --- Apple Dynamic Text / Labels (WCAG AAA / AA compliant) --- */
+  --text-primary: #ffffff;                       /* Label (100% white, contrast > 15:1) */
+  --text-secondary: rgba(235, 235, 245, 0.64);   /* Secondary Label (contrast > 4.5:1) */
+  --text-muted: rgba(235, 235, 245, 0.36);       /* Tertiary Label */
+  --text-quaternary: rgba(235, 235, 245, 0.18);  /* Quaternary Label */
+
+  /* --- Apple HIG System Accent Colors (Dark Mode Spec) --- */
+  --accent-blue: #0a84ff;                    /* System Blue (Primary Action / Tint) */
+  --accent-indigo: #5e5ce6;                  /* System Indigo */
+  --accent-violet: #bf5af2;                  /* System Purple */
+  --accent-pink: #ff375f;                    /* System Pink */
+  --accent-rose: #ff375f;                    /* Mapped to System Pink */
+  --accent-red: #ff453a;                     /* System Red (Destructive / Warning) */
+  --accent-orange: #ff9f0a;                  /* System Orange */
+  --accent-amber: #ff9f0a;                   /* Mapped to System Orange */
+  --accent-yellow: #ffd60a;                  /* System Yellow */
+  --accent-green: #30d158;                   /* System Green (Online / Success) */
+  --accent-emerald: #30d158;                 /* Mapped to System Green */
+  --accent-teal: #40c8e0;                    /* System Teal */
+  --accent-cyan: #64d2ff;                    /* System Cyan */
+
+  /* --- Apple Cupertino Grayscale Palette --- */
+  --apple-gray-1: #8e8e93;
+  --apple-gray-2: #636366;
+  --apple-gray-3: #48484a;
+  --apple-gray-4: #3a3a3c;
+  --apple-gray-5: #2c2c2e;
+  --apple-gray-6: #1c1c1e;
+
+  /* --- Apple System Typography Stack --- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Monaco, "Cascadia Mono", monospace;
+  --font-rounded: "SF Pro Rounded", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* --- Apple Shadows & Elevations --- */
+  --shadow-apple-subtle: 0 1px 3px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.12);
+  --shadow-apple-card: 0 4px 16px -2px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-apple-card-hover: 0 16px 36px -6px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-apple-button: 0 2px 8px rgba(10, 132, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+/* ==========================================================================
+   2. GLOBAL BODY & SELECTION OVERRIDES (HIG Foundations)
+   ========================================================================== */
+html[data-theme="apple"],
+html[data-theme="apple"] body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
+}
+
+/* Apple System Selection Highlight */
+html[data-theme="apple"] ::selection {
+  background-color: rgba(10, 132, 255, 0.38);
+  color: #ffffff;
+}
+
+/* Apple Native Scrollbar (macOS Overlay Feel) */
+html[data-theme="apple"]::-webkit-scrollbar,
+html[data-theme="apple"] *::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+html[data-theme="apple"]::-webkit-scrollbar-track,
+html[data-theme="apple"] *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html[data-theme="apple"]::-webkit-scrollbar-thumb,
+html[data-theme="apple"] *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+
+html[data-theme="apple"]::-webkit-scrollbar-thumb:hover,
+html[data-theme="apple"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: padding-box;
+}
+
+/* Apple Standard Focus Visible Ring */
+html[data-theme="apple"] :focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   3. AMBIENT BACKGROUND & ORBS (Craft & Restraint)
+   Apple uses serene, deep atmospheric gradients rather than high-contrast neon.
+   ========================================================================== */
+html[data-theme="apple"] .ambient-bg {
+  background: radial-gradient(
+    circle at 50% -20%,
+    rgba(22, 28, 48, 0.45) 0%,
+    rgba(10, 12, 18, 0.85) 60%,
+    #000000 100%
+  );
+}
+
+html[data-theme="apple"] .orb {
+  filter: blur(140px);
+  opacity: 0.18;
+  mix-blend-mode: screen;
+}
+
+/* Subtle sapphire / deep twilight radiance */
+html[data-theme="apple"] .orb-1 {
+  background: radial-gradient(circle, #1a2a56 0%, rgba(10, 132, 255, 0.2) 50%, transparent 70%);
+  width: 520px;
+  height: 520px;
+  top: -120px;
+  left: -80px;
+}
+
+/* Subdued dusk violet */
+html[data-theme="apple"] .orb-2 {
+  background: radial-gradient(circle, #2d1844 0%, rgba(191, 90, 242, 0.15) 50%, transparent 70%);
+  width: 480px;
+  height: 480px;
+  top: 30%;
+  right: -100px;
+}
+
+/* Deep slate / midnight cyan */
+html[data-theme="apple"] .orb-3 {
+  background: radial-gradient(circle, #102636 0%, rgba(100, 210, 255, 0.12) 50%, transparent 70%);
+  width: 560px;
+  height: 560px;
+  bottom: -160px;
+  left: 30%;
+}
+
+/* ==========================================================================
+   4. HEADER & NAVBAR (Liquid Glass Functional Layer)
+   Follows HIG Liquid Glass rules: floating, frosted, translucent, edge-fade.
+   ========================================================================== */
+html[data-theme="apple"] .navbar {
+  background: rgba(20, 20, 22, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4) !important;
+}
+
+html[data-theme="apple"] .nav-inner {
+  max-width: 1280px;
+  padding: 0.75rem 1.5rem;
+}
+
+/* Brand Group */
+html[data-theme="apple"] .brand {
+  gap: 0.75rem;
+}
+
+/* Apple App Icon / Logo Styling: Continuous curve squircle with specular highlight */
+html[data-theme="apple"] .brand-logo {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1f8eff 0%, #0a84ff 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 4px 12px rgba(10, 132, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  color: #ffffff;
+  font-size: 1.15rem;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-theme="apple"] .brand:hover .brand-logo {
+  transform: scale(1.04);
+}
+
+html[data-theme="apple"] .brand-name {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: 1.12rem !important;
+  letter-spacing: -0.024em !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .brand-sub {
+  font-size: 0.72rem !important;
+  color: var(--text-secondary) !important;
+  letter-spacing: -0.01em;
+}
+
+/* Navigation Links (macOS Toolbar / Segmented Style) */
+html[data-theme="apple"] .nav-links {
+  gap: 0.35rem;
+}
+
+html[data-theme="apple"] .nav-item {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary) !important;
+  padding: 0.45rem 0.8rem !important;
+  border-radius: 8px !important;
+  border: 1px solid transparent !important;
+  transition: background 0.15s cubic-bezier(0.2, 0, 0, 1), color 0.15s ease, transform 0.12s ease !important;
+}
+
+html[data-theme="apple"] .nav-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .nav-item:active {
+  transform: scale(0.97);
+}
+
+/* Active Segment in Nav Bar: macOS Sonoma selected tab style */
+html[data-theme="apple"] .nav-item.active {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: var(--shadow-apple-subtle) !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="apple"] .nav-item.yt-highlight.active {
+  background: rgba(255, 69, 58, 0.16) !important;
+  border-color: rgba(255, 69, 58, 0.32) !important;
+  color: #ffffff !important;
+}
+
+/* Mini Tag inside Nav Items */
+html[data-theme="apple"] .mini-tag {
+  background: rgba(255, 69, 58, 0.18) !important;
+  color: #ff6961 !important;
+  border: 1px solid rgba(255, 69, 58, 0.28) !important;
+  border-radius: 9999px !important;
+  font-size: 0.65rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.45rem !important;
+}
+
+/* ==========================================================================
+   5. BUTTONS (Apple HIG System Buttons)
+   - Style: Prominent System Blue for Primary, Cupertino Gray for Secondary
+   - Haptic Feel: transform: scale(0.97) on :active
+   - Targets: Accessible hit regions, crisp typography
+   ========================================================================== */
+html[data-theme="apple"] .btn-primary {
+  background: #0a84ff !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 11px !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem !important;
+  letter-spacing: -0.015em;
+  box-shadow: var(--shadow-apple-button) !important;
+  transition: background-color 0.15s ease, transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease, opacity 0.15s ease !important;
+}
+
+html[data-theme="apple"] .btn-primary:hover:not(:disabled) {
+  background-color: #0077ed !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(10, 132, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+html[data-theme="apple"] .btn-primary:active:not(:disabled) {
+  transform: scale(0.97) !important;
+  box-shadow: 0 1px 4px rgba(10, 132, 255, 0.3) !important;
+}
+
+html[data-theme="apple"] .btn-primary:disabled {
+  opacity: 0.45 !important;
+  background: #3a3a3c !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="apple"] .btn-secondary {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 11px !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  font-size: 0.88rem !important;
+  box-shadow: var(--shadow-apple-subtle) !important;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+html[data-theme="apple"] .btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  transform: translateY(-1px) !important;
+}
+
+html[data-theme="apple"] .btn-secondary:active:not(:disabled) {
+  transform: scale(0.97) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Launch Button inside Catalog Cards */
+html[data-theme="apple"] .launch-btn {
+  background: #0a84ff !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 9px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  padding: 0.48rem 0.95rem !important;
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.35) !important;
+  transition: background-color 0.15s ease, transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease !important;
+}
+
+html[data-theme="apple"] .launch-btn:hover {
+  background-color: #0077ed !important;
+  transform: translateX(2px) !important;
+  box-shadow: 0 4px 10px rgba(10, 132, 255, 0.45) !important;
+}
+
+html[data-theme="apple"] .launch-btn:active {
+  transform: scale(0.97) !important;
+}
+
+/* Spotlight CTA Button */
+html[data-theme="apple"] .spotlight-cta {
+  background: #0a84ff !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 11px !important;
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.38) !important;
+}
+
+html[data-theme="apple"] .spotlight-cta:hover {
+  background-color: #0077ed !important;
+  transform: translateY(-1px) !important;
+}
+
+html[data-theme="apple"] .spotlight-cta:active {
+  transform: scale(0.97) !important;
+}
+
+/* ==========================================================================
+   6. CARDS & PANELS (Apple Materials & Layer Hierarchy)
+   Content Layer uses standard materials (Cupertino Gray 5 / 6) with subtle blur
+   ========================================================================== */
+html[data-theme="apple"] .glass-panel {
+  background: var(--bg-card) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--shadow-apple-card) !important;
+}
+
+/* Hero Section (Apple Editorial Spotlight Style) */
+html[data-theme="apple"] .hero-card {
+  background: rgba(24, 24, 27, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 12px 36px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Subdued Apple Hero Glows */
+html[data-theme="apple"] .hero-glow-1 {
+  background: rgba(10, 132, 255, 0.12) !important;
+}
+
+html[data-theme="apple"] .hero-glow-2 {
+  background: rgba(94, 92, 230, 0.1) !important;
+}
+
+/* Hero Titles & Apple Gradients */
+html[data-theme="apple"] .hero-title {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+}
+
+html[data-theme="apple"] .gradient-text-cyan {
+  background: linear-gradient(135deg, #64d2ff 0%, #0a84ff 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme="apple"] .gradient-text-rose {
+  background: linear-gradient(135deg, #ff375f 0%, #bf5af2 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+html[data-theme="apple"] .hero-subtitle {
+  color: var(--text-secondary) !important;
+  font-size: 0.95rem !important;
+  line-height: 1.55 !important;
+}
+
+/* Spotlight Carousel Card */
+html[data-theme="apple"] .spotlight-card {
+  background: rgba(30, 30, 34, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.45) !important;
+}
+
+html[data-theme="apple"] .spotlight-card:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+html[data-theme="apple"] .spotlight-progress-track {
+  background: rgba(255, 255, 255, 0.08) !important;
+  height: 3px !important;
+}
+
+html[data-theme="apple"] .spotlight-icon {
+  border-radius: 13px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="apple"] .spotlight-features {
+  background: rgba(0, 0, 0, 0.22) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 10px !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Catalog Cards (App Store / Apple Music Collection Cards) */
+html[data-theme="apple"] .catalog-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--shadow-apple-card) !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease !important;
+}
+
+html[data-theme="apple"] .catalog-card:hover {
+  transform: translateY(-4px) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: var(--shadow-apple-card-hover) !important;
+}
+
+html[data-theme="apple"] .catalog-card.featured-card {
+  border-color: rgba(10, 132, 255, 0.35) !important;
+}
+
+/* Clean 2px accent indicator */
+html[data-theme="apple"] .card-accent-bar {
+  height: 2px !important;
+  opacity: 0.85;
+}
+
+html[data-theme="apple"] .card-icon-wrap {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="apple"] .card-title {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: 1.25rem !important;
+  letter-spacing: -0.018em !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .card-subtitle {
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+  font-size: 0.86rem !important;
+}
+
+html[data-theme="apple"] .card-desc {
+  color: var(--text-secondary) !important;
+  font-size: 0.86rem !important;
+  line-height: 1.5 !important;
+}
+
+html[data-theme="apple"] .card-category-label {
+  color: var(--text-muted) !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+html[data-theme="apple"] .card-footer {
+  border-top: 1px solid var(--border-subtle) !important;
+}
+
+html[data-theme="apple"] .stats-label {
+  color: var(--text-muted) !important;
+  font-size: 0.78rem !important;
+}
+
+/* Empty State */
+html[data-theme="apple"] .empty-state {
+  background: rgba(28, 28, 30, 0.5) !important;
+  border: 1px dashed rgba(255, 255, 255, 0.14) !important;
+  border-radius: 20px !important;
+  padding: 3rem 1.5rem !important;
+}
+
+html[data-theme="apple"] .empty-state h3 {
+  color: #ffffff !important;
+  font-family: var(--font-display) !important;
+}
+
+html[data-theme="apple"] .empty-state p {
+  color: var(--text-secondary) !important;
+}
+
+/* ==========================================================================
+   7. NAVIGATION & TABS (Apple Segmented Controls & Filter Bars)
+   Follows HIG Segmented Control: single container, equal segments, active elevated pill
+   ========================================================================== */
+html[data-theme="apple"] .controls-bar {
+  background: rgba(24, 24, 26, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 16px !important;
+  padding: 0.75rem 1rem !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+
+html[data-theme="apple"] .category-tabs {
+  background: rgba(118, 118, 128, 0.24) !important;
+  border-radius: 11px !important;
+  padding: 3px !important;
+  gap: 2px !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+html[data-theme="apple"] .tab-btn {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.86rem !important;
+  font-weight: 500 !important;
+  padding: 0.42rem 0.85rem !important;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease !important;
+}
+
+html[data-theme="apple"] .tab-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+html[data-theme="apple"] .tab-btn:active {
+  transform: scale(0.97);
+}
+
+/* Active Segmented Control Pill: Cupertino Elevated Light Material */
+html[data-theme="apple"] .tab-btn.active {
+  background: #636366 !important;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.2) !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="apple"] .count-pill {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  padding: 0.08rem 0.45rem !important;
+}
+
+/* ==========================================================================
+   8. SEARCH INPUT & FORM CONTROLS (macOS Spotlight / iOS Search)
+   ========================================================================== */
+html[data-theme="apple"] .search-input {
+  background: rgba(118, 118, 128, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 10px !important;
+  color: #ffffff !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.88rem !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease !important;
+}
+
+html[data-theme="apple"] .search-input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+html[data-theme="apple"] .search-input:focus {
+  background: rgba(118, 118, 128, 0.28) !important;
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3) !important;
+}
+
+html[data-theme="apple"] .clear-btn {
+  color: var(--text-muted) !important;
+  transition: color 0.15s ease;
+}
+
+html[data-theme="apple"] .clear-btn:hover {
+  color: #ffffff !important;
+}
+
+/* ==========================================================================
+   9. BADGES, CHIPS & STATUS PILLS (Cupertino Semantic Colors)
+   ========================================================================== */
+/* Pulse Badge */
+html[data-theme="apple"] .pulse-badge {
+  background: rgba(10, 132, 255, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(10, 132, 255, 0.26) !important;
+  border-radius: 9999px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+
+html[data-theme="apple"] .pulse-dot {
+  background: var(--accent-cyan) !important;
+  box-shadow: 0 0 8px var(--accent-cyan) !important;
+}
+
+/* Status Pill */
+html[data-theme="apple"] .status-pill {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 9999px !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.74rem !important;
+  font-weight: 500 !important;
+}
+
+html[data-theme="apple"] .status-pill.online {
+  background: rgba(48, 209, 88, 0.14) !important;
+  color: var(--accent-green) !important;
+  border-color: rgba(48, 209, 88, 0.3) !important;
+}
+
+/* Item Badges */
+html[data-theme="apple"] .item-badge {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 9999px !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+}
+
+html[data-theme="apple"] .item-badge[data-type="python"] {
+  background: rgba(255, 214, 10, 0.12) !important;
+  border-color: rgba(255, 214, 10, 0.28) !important;
+  color: var(--accent-yellow) !important;
+}
+
+/* Tag Chips */
+html[data-theme="apple"] .tag-chip {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 6px !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+}
+
+/* Python Chip */
+html[data-theme="apple"] .python-chip {
+  font-family: var(--font-mono) !important;
+  background: rgba(255, 214, 10, 0.12) !important;
+  color: var(--accent-yellow) !important;
+  border: 1px solid rgba(255, 214, 10, 0.26) !important;
+  border-radius: 6px !important;
+}
+
+/* Spotlight Tag */
+html[data-theme="apple"] .spotlight-tag {
+  background: rgba(10, 132, 255, 0.14) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(10, 132, 255, 0.28) !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="apple"] .spotlight-tag.is-game {
+  background: rgba(94, 92, 230, 0.15) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(94, 92, 230, 0.3) !important;
+}
+
+/* ==========================================================================
+   10. SECONDARY INTERACTIVE CONTROLS
+   ========================================================================== */
+/* Favorite Button */
+html[data-theme="apple"] .fav-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 9px !important;
+  color: var(--text-secondary) !important;
+  transition: all 0.15s ease !important;
+}
+
+html[data-theme="apple"] .fav-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .fav-btn.active {
+  background: rgba(255, 214, 10, 0.14) !important;
+  border-color: rgba(255, 214, 10, 0.35) !important;
+  color: var(--accent-yellow) !important;
+}
+
+/* Spotlight Navigation & Dots */
+html[data-theme="apple"] .spot-nav-btn {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  color: #ffffff !important;
+  transition: all 0.15s ease !important;
+}
+
+html[data-theme="apple"] .spot-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+html[data-theme="apple"] .spot-dot-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 7px !important;
+  transition: all 0.15s ease !important;
+}
+
+html[data-theme="apple"] .spot-dot-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+html[data-theme="apple"] .spot-dot-btn.active {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Section Header Icons & Link */
+html[data-theme="apple"] .section-title-group h2 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .section-title-group p {
+  color: var(--text-secondary) !important;
+}
+
+html[data-theme="apple"] .section-icon {
+  border-radius: 12px !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+html[data-theme="apple"] .section-icon.programs-bg {
+  background: rgba(10, 132, 255, 0.12) !important;
+  border-color: rgba(10, 132, 255, 0.28) !important;
+}
+
+html[data-theme="apple"] .section-icon.games-bg {
+  background: rgba(94, 92, 230, 0.12) !important;
+  border-color: rgba(94, 92, 230, 0.28) !important;
+}
+
+html[data-theme="apple"] .section-link {
+  color: var(--accent-blue) !important;
+  font-weight: 500 !important;
+  transition: opacity 0.15s ease, background 0.15s ease !important;
+}
+
+html[data-theme="apple"] .section-link:hover {
+  background: rgba(10, 132, 255, 0.12) !important;
+  opacity: 0.95;
+}
+
+/* ==========================================================================
+   11. ACCESSIBILITY LENS (HIG Lens 1: High Contrast, Reduced Motion & Transparency)
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="apple"] * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transform: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html[data-theme="apple"] {
+    --border-subtle: rgba(255, 255, 255, 0.35);
+    --border-highlight: rgba(255, 255, 255, 0.5);
+    --text-secondary: rgba(255, 255, 255, 0.85);
+    --text-muted: rgba(255, 255, 255, 0.65);
+  }
+
+  html[data-theme="apple"] .navbar,
+  html[data-theme="apple"] .glass-panel,
+  html[data-theme="apple"] .catalog-card,
+  html[data-theme="apple"] .hero-card,
+  html[data-theme="apple"] .spotlight-card,
+  html[data-theme="apple"] .controls-bar {
+    border-width: 1.5px !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-theme="apple"] .navbar,
+  html[data-theme="apple"] .glass-panel,
+  html[data-theme="apple"] .catalog-card,
+  html[data-theme="apple"] .hero-card,
+  html[data-theme="apple"] .spotlight-card,
+  html[data-theme="apple"] .controls-bar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background-color: #1c1c1e !important;
+  }
+}
+
+
+/* ==========================================================================
+   TOP BAR ACTIONS & DROPDOWNS (Apple Liquid Glass & Cupertino Controls)
+   ========================================================================== */
+html[data-theme="apple"] .nav-top-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+html[data-theme="apple"] .top-ctrl-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 9px !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html[data-theme="apple"] .top-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-0.5px);
+}
+
+html[data-theme="apple"] .top-ctrl-btn:active {
+  transform: scale(0.97) !important;
+}
+
+html[data-theme="apple"] .top-ctrl-btn:focus-visible {
+  outline: 2px solid var(--accent-blue) !important;
+  outline-offset: 2px;
+}
+
+html[data-theme="apple"] .dropdown-popover {
+  background: rgba(28, 28, 30, 0.88) !important;
+  backdrop-filter: blur(32px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 20px 48px -8px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="apple"] .dropdown-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="apple"] .dropdown-title {
+  color: var(--apple-gray-1) !important;
+  font-family: var(--font-display) !important;
+  letter-spacing: 0.06em !important;
+}
+
+html[data-theme="apple"] .dropdown-badge {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+  border-radius: 5px !important;
+}
+
+html[data-theme="apple"] .dropdown-item {
+  border-radius: 10px !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="apple"] .dropdown-item.selected {
+  background: rgba(10, 132, 255, 0.16) !important;
+  border-color: rgba(10, 132, 255, 0.35) !important;
+}
+
+html[data-theme="apple"] .dropdown-item.selected .theme-item-icon-box,
+html[data-theme="apple"] .dropdown-item.selected .lang-flag-box {
+  background: linear-gradient(180deg, #1f8eff 0%, #0a84ff 100%) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="apple"] .dropdown-item.selected .dropdown-item-badge {
+  background: rgba(10, 132, 255, 0.25) !important;
+  color: #70b4ff !important;
+}
+
+html[data-theme="apple"] .dropdown-check-mark {
+  color: var(--accent-blue) !important;
+}

@@ -1,8 +1,9 @@
-import { Component, HostListener, OnDestroy, computed, signal } from '@angular/core';
+import { Component, HostListener, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { loadSavedPlayerNames, savePlayerNames } from '../../services/player-storage';
+import { LanguageService } from '../../services/language.service';
 
 export type AnomiaLang = 'de' | 'en';
 
@@ -2463,13 +2464,12 @@ export const ANOMIA_WILD_PAIRS: Array<[AnomiaSymbolId, AnomiaSymbolId]> = [
   ],
 })
 export class AnomiaGameComponent implements OnDestroy {
+  protected readonly languageService = inject(LanguageService);
   readonly symbolList = SYMBOL_LIST;
 
-  // Language ('de' | 'en') persisted in localStorage
-  readonly lang = signal<AnomiaLang>(
-    (localStorage.getItem('allinone_anomia_lang') as AnomiaLang) === 'en' ? 'en' : 'de'
-  );
-  readonly isEn = computed(() => this.lang() === 'en');
+  // Language ('de' | 'en') global & locally persisted
+  readonly lang = this.languageService.currentLang;
+  readonly isEn = this.languageService.isEn;
 
   // UI & Audio Switches
   readonly soundOn = signal<boolean>(true);
@@ -2541,11 +2541,8 @@ export class AnomiaGameComponent implements OnDestroy {
   }
 
   setLanguage(l: AnomiaLang): void {
-    this.lang.set(l);
+    this.languageService.setLanguage(l);
     this.statusMessage.set('');
-    try {
-      localStorage.setItem('allinone_anomia_lang', l);
-    } catch {}
     this.syncDefaultPlayerNames(l);
   }
 
